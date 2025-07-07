@@ -3,6 +3,9 @@ data/input/*.html
 data/output/txt/*.txt
 data/output/csv/*.csv
 data/output/json/*.json
+data/input/bk/*.html
+data/output/txt/bk/*.txt
+data/output/csv/bk/*.csv
 
 # サンプルファイルは除外しない
 !data/input/sample.html
