@@ -16,8 +16,13 @@ def parse_txt_to_tweets(txt_file_path):
     for line in lines:
         line = line.strip()
 
+        # ユーザー名の行を検出
+        if line.startswith('ユーザー名: '):
+            user_name = line.replace('ユーザー名: ', '')
+            current_tweet['user_name'] = user_name
+
         # 日時の行を検出
-        if line.startswith('日時: '):
+        elif line.startswith('日時: '):
             datetime_str = line.replace('日時: ', '')
             current_tweet['datetime'] = datetime_str
             # 日時をパースしてソート用のタイムスタンプを作成
@@ -96,10 +101,11 @@ def merge_all_txt_to_csv():
     # CSVファイルに書き込み
     with open(csv_file, 'w', encoding='utf-8', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['日時', 'URL', 'ツイート内容', '元ファイル'])
+        writer.writerow(['ユーザー名', '日時', 'URL', 'ツイート内容', '元ファイル'])
 
         for tweet in all_tweets:
             writer.writerow([
+                tweet.get('user_name', ''),
                 tweet.get('datetime', ''),
                 tweet.get('url', ''),
                 tweet.get('text', ''),

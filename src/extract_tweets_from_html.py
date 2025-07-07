@@ -45,15 +45,33 @@ def extract_tweets_from_html(html_file_path):
             'text': '',
             'datetime': '',
             'quote_url': '',
+            'user_name': '',
             'raw_html': str(tweet_element)[:500]  # デバッグ用
         }
 
         try:
+            # ユーザー名（表示名）を抽出
+            user_name_elem = tweet_element.select_one('[data-testid="User-Name"] span')
+            if user_name_elem:
+                tweet_data['user_name'] = user_name_elem.get_text().strip()
+
             # ツイートテキストを抽出
             text_elements = tweet_element.select('[data-testid="tweetText"]')
             if text_elements:
                 # テキストを取得し、改行と余分なスペースを整理
                 text = text_elements[0].get_text()
+                # <a href="https://..."> のリンクも抽出してテキスト末尾に追加
+                link_tags = text_elements[0].select('a[href^="http"]')
+                links = [a.get('href') for a in link_tags if a.get('href')]
+                # ツイート要素全体からt.coリンクも抽出
+                tco_links = [a.get('href') for a in tweet_element.select('a[href^="https://t.co/"]') if a.get('href')]
+                # すでに本文に含まれていないリンクのみ追加
+                all_links = []
+                for l in links + tco_links:
+                    if l and l not in text and l not in all_links:
+                        all_links.append(l)
+                if all_links:
+                    text = text.strip() + ' ' + ' '.join(all_links)
                 # 改行を削除し、複数のスペースを1つに
                 text = re.sub(r'\s+', ' ', text).strip()
                 tweet_data['text'] = text
@@ -100,7 +118,7 @@ def extract_tweets_from_html(html_file_path):
             # 有効なツイートのみ追加（テキストが存在する場合）
             if tweet_data['text']:
                 tweets.append(tweet_data)
-                print(f"ツイート {i+1}: {tweet_data['text'][:50]}...")
+                print(f"ツイート {i+1}: {tweet_data['text'][:50]}... ユーザー: {tweet_data['user_name']}")
 
         except Exception as e:
             print(f"ツイート {i+1} の抽出でエラー: {e}")
@@ -135,6 +153,8 @@ def save_tweets_to_files(tweets, base_filename="extracted_tweets"):
 
         for tweet in tweets:
             f.write(f"{tweet['id']}.\n")
+            if tweet['user_name']:
+                f.write(f"ユーザー名: {tweet['user_name']}\n")
             if tweet['datetime']:
                 f.write(f"日時: {tweet['datetime']}\n")
             if tweet['quote_url']:
@@ -215,6 +235,8 @@ def main():
         print("=" * 50)
         for tweet in tweets:
             print(f"{tweet['id']}.")
+            if tweet['user_name']:
+                print(f"ユーザー名: {tweet['user_name']}")
             if tweet['datetime']:
                 print(f"日時: {tweet['datetime']}")
             if tweet['quote_url']:
@@ -222,6 +244,11 @@ def main():
             formatted_text = format_tweet_text(tweet['text'])
             print(f"{formatted_text}")
             print("-" * 30)
+        # 最後のツイートの日時をuntil形式で表示
+        last_dt = tweets[-1].get('datetime')
+        if last_dt:
+            until_str = last_dt.replace('/', '-').replace(' ', '_')
+            print(f"\nuntil:{until_str}_JST")
     else:
         print("ツイートを抽出できませんでした。")
 
