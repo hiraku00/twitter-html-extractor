@@ -9,10 +9,11 @@ Twitter/X の HTML ファイルからツイートデータを抽出し、CSV フ
 ## 機能
 
 - HTML ファイルからツイートデータを抽出
-- 日時、ツイート URL、ツイート内容を解析
+- 日時、ユーザー名、ツイート URL、ツイート内容、ツイート本文中の全 URL（t.co 含む）を解析
 - テキストファイルと JSON ファイルに出力
 - 複数ファイルのマージ機能
-- CSV ファイルへの変換機能
+- CSV ファイルへの変換機能（ユーザー名カラム追加）
+- ツイート抽出後、最後のツイート日時を `until:YYYY-MM-DD_HH:MM:SS_JST` 形式でコンソールに表示
 
 ## ファイル構成
 
@@ -127,9 +128,10 @@ python src/merge_all_txt_to_csv.py
 抽出ツイート数: 8
 ==================================================
 1.
+ユーザー名: サンプルユーザー
 日時: 2025/06/15 12:44:35
 ツイートURL: https://x.com/username/status/1234567890123456789
-ツイート内容...
+ツイート内容... https://t.co/xxxx https://example.com/...
 ------------------------------
 ```
 
@@ -142,7 +144,8 @@ python src/merge_all_txt_to_csv.py
   "tweets": [
     {
       "id": 1,
-      "text": "ツイート内容",
+      "user_name": "サンプルユーザー",
+      "text": "ツイート内容... https://t.co/xxxx https://example.com/...",
       "datetime": "2025/06/15 12:44:35",
       "quote_url": "https://x.com/...",
       "raw_html": "..."
@@ -154,8 +157,8 @@ python src/merge_all_txt_to_csv.py
 #### CSV ファイル（.csv）
 
 ```csv
-日時,URL,ツイート内容,元ファイル
-2025/06/15 12:44:35,https://x.com/username/status/1234567890123456789,ツイート内容...,250706.txt
+ユーザー名,日時,URL,ツイート内容,元ファイル
+サンプルユーザー,2025/06/15 12:44:35,https://x.com/username/status/1234567890123456789,"ツイート内容... https://t.co/xxxx https://example.com/...",250706.txt
 ```
 
 ## 注意事項
