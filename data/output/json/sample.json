@@ -1,0 +1,27 @@
+{
+  "extraction_time": "2025-01-27T15:30:00",
+  "tweet_count": 3,
+  "tweets": [
+    {
+      "id": 1,
+      "text": "これはサンプルツイートです。DTVビザに関する情報が含まれています。",
+      "datetime": "2025/06/15 12:44:35",
+      "quote_url": "https://x.com/sample/status/1234567890",
+      "raw_html": "<article data-testid=\"tweet\">...</article>"
+    },
+    {
+      "id": 2,
+      "text": "2番目のサンプルツイートです。タイのビザ情報について説明しています。",
+      "datetime": "2025/06/15 13:30:00",
+      "quote_url": "https://x.com/sample/status/0987654321",
+      "raw_html": "<article data-testid=\"tweet\">...</article>"
+    },
+    {
+      "id": 3,
+      "text": "3番目のサンプルツイートです。実際のデータではありません。",
+      "datetime": "2025/06/15 14:15:00",
+      "quote_url": "https://x.com/sample/status/1122334455",
+      "raw_html": "<article data-testid=\"tweet\">...</article>"
+    }
+  ]
+}

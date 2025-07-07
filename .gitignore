@@ -1,0 +1,61 @@
+# 実際のデータファイル（日付付き）
+data/input/*.html
+data/output/txt/*.txt
+data/output/csv/*.csv
+data/output/json/*.json
+
+# サンプルファイルは除外しない
+!data/input/sample.html
+!data/output/txt/sample.txt
+!data/output/csv/all_tweets_sample.csv
+!data/output/json/sample.json
+
+# メモファイル
+memo.md
+
+# Python関連
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 環境関連
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE関連
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS関連
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
