@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from extract_tweets_from_html import main as extract_main
 from merge_all_txt_to_csv import merge_all_txt_to_csv
+from create_html_from_clipboard import create_html_from_clipboard
 
 def main():
     """メインエントリーポイント"""
@@ -18,10 +19,12 @@ def main():
         print("使用方法:")
         print("  ツイート抽出: python main.py extract <日付>")
         print("  マージ実行:   python main.py merge")
+        print("  HTML作成:     python main.py html <日付>")
         print("")
         print("例:")
         print("  python main.py extract 250706")
         print("  python main.py merge")
+        print("  python main.py html 250701")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -40,9 +43,17 @@ def main():
     elif command == "merge":
         merge_all_txt_to_csv()
 
+    elif command == "html":
+        if len(sys.argv) < 3:
+            print("エラー: 日付を指定してください")
+            print("例: python main.py html 250701")
+            sys.exit(1)
+        filename = sys.argv[2]
+        create_html_from_clipboard(filename)
+
     else:
         print(f"エラー: 不明なコマンド '{command}'")
-        print("使用可能なコマンド: extract, merge")
+        print("使用可能なコマンド: extract, merge, html")
         sys.exit(1)
 
 if __name__ == "__main__":

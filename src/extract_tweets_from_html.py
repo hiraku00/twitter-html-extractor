@@ -5,6 +5,7 @@ import re
 import argparse
 import sys
 import os
+import pyperclip
 
 def extract_tweets_from_html(html_file_path):
     """HTMLファイルからツイートデータを抽出"""
@@ -249,6 +250,12 @@ def main():
         if last_dt:
             until_str = last_dt.replace('/', '-').replace(' ', '_')
             print(f"\nuntil:{until_str}_JST")
+            # クリップボードにコピー
+            try:
+                pyperclip.copy(f"until:{until_str}_JST")
+                print(f"until日付をクリップボードにコピーしました: until:{until_str}_JST")
+            except Exception as e:
+                print(f"クリップボードへのコピーに失敗しました: {e}")
     else:
         print("ツイートを抽出できませんでした。")
 

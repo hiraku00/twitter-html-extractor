@@ -4,7 +4,7 @@ Twitter/X の HTML ファイルからツイートデータを抽出し、CSV フ
 
 ## 概要
 
-このプロジェクトは、Twitter/X の HTML ファイルからツイートデータを抽出し、整理された形式で保存するためのツールセットです。ブラウザで手動取得した HTML ファイルから、ツイートの日時、URL、内容を抽出できます。
+このプロジェクトは、Twitter/X の HTML ファイルからツイートデータを抽出し、整理された形式で保存するためのツールセットです。ブラウザで取得した HTML 要素をクリップボード経由で保存し、ツイートの日時、URL、内容を抽出できます。
 
 ## 機能
 
@@ -14,6 +14,8 @@ Twitter/X の HTML ファイルからツイートデータを抽出し、CSV フ
 - 複数ファイルのマージ機能
 - CSV ファイルへの変換機能（ユーザー名カラム追加）
 - ツイート抽出後、最後のツイート日時を `until:YYYY-MM-DD_HH:MM:SS_JST` 形式でコンソールに表示
+- **until 日付をクリップボードに自動コピー（次回の検索条件としてすぐ貼り付けできるようにするため）**
+- **クリップボードの内容から HTML ファイルを作成する機能（手動でファイルを配置する必要なし）**
 
 ## ファイル構成
 
@@ -21,22 +23,20 @@ Twitter/X の HTML ファイルからツイートデータを抽出し、CSV フ
 twitter-html-extractor/
 ├── src/                          # ソースコード
 │   ├── extract_tweets_from_html.py
-│   └── merge_all_txt_to_csv.py
+│   ├── merge_all_txt_to_csv.py
+│   └── create_html_from_clipboard.py
 ├── data/                         # データフォルダ
-│   ├── input/                    # 入力ファイル
-│   │   └── sample.html
+│   ├── input/                    # 入力ファイル（スクリプトで自動生成）
 │   └── output/                   # 出力ファイル
 │       ├── txt/                  # テキストファイル
-│       │   └── sample.txt
 │       ├── json/                 # JSONファイル
-│       │   └── sample.json
 │       └── csv/                  # CSVファイル
-│           └── all_tweets_sample.csv
 ├── docs/                         # ドキュメント
 │   └── README.md
 ├── tests/                        # テストファイル
 │   ├── test_extract_tweets.py
 │   ├── test_merge_csv.py
+│   ├── test_create_html.py
 │   └── run_tests.py
 ├── main.py                       # エントリーポイント
 ├── requirements.txt
@@ -50,6 +50,7 @@ twitter-html-extractor/
 - Python 3.7 以上
 - 必要なライブラリ：
   - beautifulsoup4
+  - pyperclip
   - argparse（標準ライブラリ）
   - csv（標準ライブラリ）
   - datetime（標準ライブラリ）
@@ -62,111 +63,66 @@ git clone <repository-url>
 cd twitter-html-extractor
 
 # 必要なライブラリをインストール
-pip install beautifulsoup4
+pip install -r requirements.txt
 ```
-
-### HTML ファイルの取得方法
-
-1. **ブラウザでの手動取得**
-
-   - Twitter/X のタイムラインを開く
-   - F12 キーで開発者ツールを開く
-   - Elements タブで HTML を確認
-   - ページ全体を右クリック → 「ページのソースを表示」
-   - ソースをコピーして HTML ファイルとして保存
-
-2. **ファイル名の形式**
-   - ファイル名は `YYYYMMDD.html` の形式で保存
-   - 例：`250706.html`（2025 年 7 月 6 日のデータ）
 
 ## 使用方法
 
-### 1. HTML ファイルからツイートを抽出
+### 1. クリップボードから HTML ファイルを作成
+
+1. Twitter/X のタイムラインを開き、F12 で開発者ツールを開く
+2. ツイート要素を右クリック →「Copy」→「Copy element」
+3. 下記コマンドでクリップボードの内容を HTML ファイルとして保存
+
+```bash
+python main.py html 250706
+```
+
+- クリップボードの内容が `data/input/250706.html` として保存されます
+- 既存ファイルがある場合は上書き確認を表示します
+
+### 2. HTML ファイルからツイートを抽出
 
 ```bash
 python main.py extract 250706
 ```
 
-**出力：**
+- `data/input/250706.html` からツイートを抽出し、
+  - `data/output/txt/250706.txt`（テキスト）
+  - `data/output/json/250706.json`（JSON）
+    に出力します
+- **最後のツイート日時（until:...\_JST）がコンソールに表示され、同時にクリップボードにもコピーされます**
+  - → 次回の検索条件としてすぐ貼り付け可能
 
-- `data/output/txt/250706.txt` - テキストファイル
-- `data/output/json/250706.json` - JSON ファイル
-
-### 2. 全ファイルをマージして CSV を作成
+### 3. 全ファイルをマージして CSV を作成
 
 ```bash
 python main.py merge
 ```
 
-**出力：**
-
-- `data/output/csv/all_tweets.csv` - 全ツイートの統合 CSV ファイル
-
-### 3. 直接スクリプトを実行（従来の方法）
-
-```bash
-# ツイート抽出
-python src/extract_tweets_from_html.py 250706
-
-# マージ実行
-python src/merge_all_txt_to_csv.py
-```
+- `data/output/csv/all_tweets.csv` に全ツイートを統合して出力します
 
 ## ファイル形式
 
 ### 入力ファイル
 
-- HTML ファイル（ブラウザで手動取得した Twitter/X のページソース）
-- ファイル名形式：`YYYYMMDD.html`（例：`250706.html`）
+- HTML ファイル（クリップボードから自動生成）
+- ファイル名形式：`YYMMDD.html`（例：`250706.html`）
 
 ### 出力ファイル
 
-#### テキストファイル（.txt）
-
-```
-抽出日時: 2025-01-27 15:30:00
-抽出ツイート数: 8
-==================================================
-1.
-ユーザー名: サンプルユーザー
-日時: 2025/06/15 12:44:35
-ツイートURL: https://x.com/username/status/1234567890123456789
-ツイート内容... https://t.co/xxxx https://example.com/...
-------------------------------
-```
-
-#### JSON ファイル（.json）
-
-```json
-{
-  "extraction_time": "2025-01-27T15:30:00",
-  "tweet_count": 8,
-  "tweets": [
-    {
-      "id": 1,
-      "user_name": "サンプルユーザー",
-      "text": "ツイート内容... https://t.co/xxxx https://example.com/...",
-      "datetime": "2025/06/15 12:44:35",
-      "quote_url": "https://x.com/...",
-      "raw_html": "..."
-    }
-  ]
-}
-```
-
-#### CSV ファイル（.csv）
-
-```csv
-ユーザー名,日時,URL,ツイート内容,元ファイル
-サンプルユーザー,2025/06/15 12:44:35,https://x.com/username/status/1234567890123456789,"ツイート内容... https://t.co/xxxx https://example.com/...",250706.txt
-```
+- テキストファイル（.txt）
+- JSON ファイル（.json）
+- CSV ファイル（.csv）
 
 ## 注意事項
 
-- 入力 HTML ファイルは`data/input`フォルダに配置してください
+- 入力 HTML ファイルはスクリプトで自動生成されます（手動配置不要）
 - 出力ファイルは`data/output`フォルダに自動生成されます
 - 日時は JST（日本標準時）で表示されます
 - ツイートの重複は排除されません（元の HTML の構造に依存）
+- **until 日付は自動的にクリップボードにコピーされます（次回検索条件用）**
+- **HTML ファイル作成時は、クリップボードに HTML 要素がコピーされていることを確認してください**
 
 ## トラブルシューティング
 
@@ -174,8 +130,8 @@ python src/merge_all_txt_to_csv.py
 
 1. **ファイルが見つからないエラー**
 
-   - `data/input`フォルダが存在することを確認
-   - HTML ファイルが正しい形式で配置されていることを確認
+   - `python main.py html <日付>` で HTML ファイルを作成したか確認
+   - クリップボードに HTML 要素が正しくコピーされているか確認
 
 2. **抽出件数が少ない**
 
@@ -191,6 +147,13 @@ python src/merge_all_txt_to_csv.py
 このプロジェクトは MIT ライセンスの下で公開されています。
 
 ## 更新履歴
+
+- v1.1.0: クリップボード機能追加
+
+  - until 日付のクリップボード自動コピー機能（次回検索条件用）
+  - クリップボードから HTML ファイル作成機能
+  - main.py に html コマンド追加
+  - pyperclip 依存関係追加
 
 - v1.0.0: 初期リリース
   - HTML ファイルからのツイート抽出機能
