@@ -16,6 +16,7 @@ Twitter/X の HTML ファイルからツイートデータを抽出し、CSV フ
 - ツイート抽出後、最後のツイート日時を `until:YYYY-MM-DD_HH:MM:SS_JST` 形式でコンソールに表示
 - **until 日付をクリップボードに自動コピー（次回の検索条件としてすぐ貼り付けできるようにするため）**
 - **クリップボードの内容から HTML ファイルを作成する機能（手動でファイルを配置する必要なし）**
+- **Twitter の HTML ファイル作成を自動化する機能（pyautogui 使用）**
 
 ## ファイル構成
 
@@ -24,7 +25,8 @@ twitter-html-extractor/
 ├── src/                          # ソースコード
 │   ├── extract_tweets_from_html.py
 │   ├── merge_all_txt_to_csv.py
-│   └── create_html_from_clipboard.py
+│   ├── create_html_from_clipboard.py
+│   └── create_twitter_html_auto.py
 ├── data/                         # データフォルダ
 │   ├── input/                    # 入力ファイル（スクリプトで自動生成）
 │   └── output/                   # 出力ファイル
@@ -37,6 +39,7 @@ twitter-html-extractor/
 │   ├── test_extract_tweets.py
 │   ├── test_merge_csv.py
 │   ├── test_create_html.py
+│   ├── test_create_twitter_html_auto.py
 │   └── run_tests.py
 ├── main.py                       # エントリーポイント
 ├── requirements.txt
@@ -51,6 +54,7 @@ twitter-html-extractor/
 - 必要なライブラリ：
   - beautifulsoup4
   - pyperclip
+  - pyautogui（自動化機能用）
   - argparse（標準ライブラリ）
   - csv（標準ライブラリ）
   - datetime（標準ライブラリ）
@@ -102,6 +106,23 @@ python main.py merge
 
 - `data/output/csv/all_tweets.csv` に全ツイートを統合して出力します
 
+### 4. Twitter の HTML ファイル作成を自動化
+
+```bash
+python main.py auto 2025-01-15
+```
+
+- 指定された日付で Twitter 検索を自動実行
+- 検索キーワードは「dtv ビザ」（デフォルト）
+- ブラウザ拡張ボタンで HTML を自動コピー
+- `data/input/twitter_YYYY-MM-DD.html` として保存
+
+**注意**: この機能を使用する前に以下が必要です：
+
+- Twitter の検索ボックスの位置を事前に設定
+- ブラウザ拡張ボタンの位置を事前に設定
+- pyautogui の依存関係がインストールされていること
+
 ## ファイル形式
 
 ### 入力ファイル
@@ -123,6 +144,7 @@ python main.py merge
 - ツイートの重複は排除されません（元の HTML の構造に依存）
 - **until 日付は自動的にクリップボードにコピーされます（次回検索条件用）**
 - **HTML ファイル作成時は、クリップボードに HTML 要素がコピーされていることを確認してください**
+- **自動化機能（auto）は pyautogui を使用するため、ブラウザの位置設定が必要です**
 
 ## トラブルシューティング
 
@@ -147,6 +169,13 @@ python main.py merge
 このプロジェクトは MIT ライセンスの下で公開されています。
 
 ## 更新履歴
+
+- v1.2.0: Twitter 自動化機能追加
+
+  - Twitter の HTML ファイル作成を自動化する機能
+  - pyautogui を使用したブラウザ操作の自動化
+  - main.py に auto コマンド追加
+  - pyautogui 依存関係追加
 
 - v1.1.0: クリップボード機能追加
 
