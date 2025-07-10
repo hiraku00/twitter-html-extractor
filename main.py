@@ -11,7 +11,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from extract_tweets_from_html import main as extract_main
 from merge_all_txt_to_csv import merge_all_txt_to_csv
-from create_html_from_clipboard import create_html_from_clipboard
 from create_twitter_html_auto import main as create_twitter_html_auto_main
 
 def main():
@@ -51,8 +50,15 @@ def main():
             print("エラー: 日付を指定してください")
             print("例: python main.py html 250701")
             sys.exit(1)
-        filename = sys.argv[2]
-        create_html_from_clipboard(filename)
+        yymmdd = sys.argv[2]
+        if len(yymmdd) == 6:
+            year = 2000 + int(yymmdd[:2])
+            date_str = f"{year:04d}-{yymmdd[2:4]}-{yymmdd[4:6]}"
+        else:
+            print("日付はYYMMDD形式で指定してください")
+            sys.exit(1)
+        from src.create_twitter_html_auto import main as twitter_html_main
+        twitter_html_main(date_str)
 
     elif command == "auto":
         if len(sys.argv) < 3:
