@@ -2,7 +2,12 @@ import csv
 import re
 import os
 import glob
+import sys
 from datetime import datetime
+
+# 設定ファイルをインポート
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+import config
 
 def parse_txt_to_tweets(txt_file_path):
     """txtファイルを解析してツイートデータを抽出"""
@@ -71,11 +76,11 @@ def parse_txt_to_tweets(txt_file_path):
 def merge_all_txt_to_csv():
     """全てのtxtファイルをマージしてCSVファイルを作成"""
 
-    output_folder = "data/output"
+    output_folder = config.OUTPUT_FOLDER
     csv_file = os.path.join(output_folder, "csv", "all_tweets.csv")
 
     # txtフォルダ内の全てのtxtファイルを取得
-    txt_folder = os.path.join(output_folder, "txt")
+    txt_folder = config.TXT_OUTPUT_FOLDER
     txt_files = glob.glob(os.path.join(txt_folder, "*.txt"))
 
     if not txt_files:
@@ -83,7 +88,7 @@ def merge_all_txt_to_csv():
         return
 
     # csvフォルダの作成
-    csv_folder = os.path.join(output_folder, "csv")
+    csv_folder = config.CSV_OUTPUT_FOLDER
     if not os.path.exists(csv_folder):
         os.makedirs(csv_folder)
 
