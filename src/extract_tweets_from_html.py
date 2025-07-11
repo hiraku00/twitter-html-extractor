@@ -7,6 +7,10 @@ import sys
 import os
 import pyperclip
 
+# 設定ファイルをインポート
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+import config
+
 def extract_tweets_from_html(html_file_path):
     """HTMLファイルからツイートデータを抽出"""
 
@@ -191,8 +195,8 @@ def main():
     args = parser.parse_args()
 
     # 入力・出力フォルダの設定
-    input_folder = "data/input"
-    output_folder = "data/output"
+    input_folder = config.INPUT_FOLDER
+    output_folder = config.OUTPUT_FOLDER
 
     # HTMLファイル名を生成
     html_file = os.path.join(input_folder, f"{args.date}.html")
@@ -204,8 +208,8 @@ def main():
         sys.exit(1)
 
     # 出力フォルダの作成
-    txt_output_folder = os.path.join(output_folder, "txt")
-    json_output_folder = os.path.join(output_folder, "json")
+    txt_output_folder = config.TXT_OUTPUT_FOLDER
+    json_output_folder = config.JSON_OUTPUT_FOLDER
 
     if not os.path.exists(txt_output_folder):
         os.makedirs(txt_output_folder)
