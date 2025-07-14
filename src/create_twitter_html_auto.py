@@ -181,7 +181,6 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
     # 各位置を取得
     print("\n=== 位置設定 ===")
     search_box_pos = get_position("検索ボックスの位置(✗ボタンの位置)にマウスを移動してください")
-    latest_tab_pos = get_position("“最新”タブの位置にマウスを移動してください")
     extension_button_pos = get_position("ブラウザ拡張ボタンの位置にマウスを移動してください")
 
     print("\n=== 自動化開始 ===")
@@ -192,10 +191,10 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
         print("Twitterの検索を実行中...")
         navigate_to_twitter_search(search_query, search_box_pos)
 
-        # “最新”タブをクリック
-        print("“最新”タブをクリックします...")
-        pyautogui.click(latest_tab_pos)
-        time.sleep(1)  # タブ切り替えの待機
+        # “最新”タブをクリック（除外済み）
+        # print("“最新”タブをクリックします...")
+        # pyautogui.click(latest_tab_pos)
+        # time.sleep(1)  # タブ切り替えの待機
 
         # ページの読み込みを待機
         print("ページの読み込みを待機中...")
