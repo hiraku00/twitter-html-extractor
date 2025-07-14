@@ -25,7 +25,7 @@ pip install -r requirements.txt
 - [Copy HTML](https://chromewebstore.google.com/detail/copy-html/indfogjkdbmkihaohndcnkoaheopbhjf)（Chrome 拡張）をインストール
 - スクリプト実行前に **Twitter の検索画面**（ https://twitter.com/search ）を開いておく
 - キーワードや日付条件（since/until 句）はスクリプトが自動で入力
-- スクリプトはこの検索画面上で自動的に検索クエリを入力し、「最新」タブを選択し、Copy HTML 拡張ボタンを押下して HTML を取得
+- スクリプトはこの検索画面上で自動的に検索クエリを入力し、Copy HTML 拡張ボタンを押下して HTML を取得
 
 ## 基本的な使い方
 
@@ -126,7 +126,7 @@ python main.py html --no-date
   ```bash
   python -m unittest discover tests
   ```
-- pyautogui 等の副作用はテスト時にモックされるので安心
+- pyautogui や get_position 等のマウス操作・ユーザー入力はテスト時に自動でモックされ、実際の操作は発生しません
 
 ---
 
