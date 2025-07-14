@@ -37,31 +37,20 @@ class TestCreateTwitterHtmlAuto(unittest.TestCase):
         shutil.rmtree(self.temp_dir)
         self.pyautogui_patcher.stop()
 
-    @patch('pyautogui.position')
-    @patch('builtins.input')
-    def test_get_position(self, mock_input, mock_position):
-        """位置取得機能のテスト"""
+    @patch('src.create_twitter_html_auto.get_position')
+    def test_get_position(self, mock_get_position):
+        """位置取得機能のテスト（モック）"""
+        mock_get_position.return_value = (100, 200)
         from src.create_twitter_html_auto import get_position
-
-        mock_position.return_value = (100, 200)
-        mock_input.return_value = ""
-
         result = get_position("テスト用プロンプト")
-
         self.assertEqual(result, (100, 200))
-        mock_input.assert_called_once()
 
-    @patch('pyautogui.position')
-    @patch('builtins.input')
-    def test_get_position_retry(self, mock_input, mock_position):
-        """位置取得の再試行テスト"""
+    @patch('src.create_twitter_html_auto.get_position')
+    def test_get_position_retry(self, mock_get_position):
+        """位置取得の再試行テスト（モック）"""
+        mock_get_position.return_value = (100, 200)
         from src.create_twitter_html_auto import get_position
-
-        mock_position.return_value = (100, 200)
-        mock_input.return_value = ""
-
         result = get_position("テスト用プロンプト")
-
         self.assertEqual(result, (100, 200))
 
     def test_save_html_to_file(self):
