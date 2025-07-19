@@ -24,7 +24,7 @@ def main():
         print("")
         print("HTML作成のオプション:")
         print("  --no-date: 日付指定なしで検索（untilは指定、日付引数不要）")
-        print("  --keyword-type <type>: 検索キーワードの種類 (default, thai, en, custom)")
+        print("  --keyword-type <type>: 検索キーワードの種類 (default, thai, en, chikirin, custom)")
         print("  --search-keyword <keyword>: カスタム検索キーワード")
         print("")
         print("例:")
@@ -34,6 +34,7 @@ def main():
         print("  python main.py html --no-date")
         print("  python main.py html --no-date --keyword-type thai")
         print("  python main.py html 250701 --search-keyword 'ニュース ビザ'")
+        print("  python main.py html 250701 --keyword-type chikirin")
         print("  python main.py auto 2025-01-15")
         sys.exit(1)
 

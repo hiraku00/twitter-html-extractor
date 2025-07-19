@@ -76,34 +76,58 @@ def parse_txt_to_tweets(txt_file_path):
 def merge_all_txt_to_csv():
     """全てのtxtファイルをマージしてCSVファイルを作成"""
 
-    output_folder = config.OUTPUT_FOLDER
-    csv_file = os.path.join(output_folder, "csv", "all_tweets.csv")
+    all_tweets = []
+    processed_files = []
 
-    # txtフォルダ内の全てのtxtファイルを取得
+    # 通常のフォルダからtxtファイルを取得
     txt_folder = config.TXT_OUTPUT_FOLDER
     txt_files = glob.glob(os.path.join(txt_folder, "*.txt"))
 
-    if not txt_files:
-        print("txtフォルダにtxtファイルが見つかりません。")
+    if txt_files:
+        print(f"通常フォルダから {len(txt_files)} ファイルを処理:")
+        for txt_file in txt_files:
+            print(f"  処理中: {os.path.basename(txt_file)}")
+            tweets = parse_txt_to_tweets(txt_file)
+            all_tweets.extend(tweets)
+            processed_files.append(txt_file)
+
+    # prefix別フォルダからtxtファイルを取得
+    for keyword_type, prefix in config.KEYWORD_PREFIX_MAPPING.items():
+        if prefix is not None:
+            folders = config.get_prefix_folders(prefix)
+            prefix_txt_folder = folders['txt']
+            prefix_txt_files = glob.glob(os.path.join(prefix_txt_folder, "*.txt"))
+
+            if prefix_txt_files:
+                print(f"{prefix}フォルダから {len(prefix_txt_files)} ファイルを処理:")
+                for txt_file in prefix_txt_files:
+                    print(f"  処理中: {os.path.basename(txt_file)}")
+                    tweets = parse_txt_to_tweets(txt_file)
+                    all_tweets.extend(tweets)
+                    processed_files.append(txt_file)
+
+    if not processed_files:
+        print("txtファイルが見つかりません。")
+        print("以下の場所を確認してください:")
+        print(f"  - {config.TXT_OUTPUT_FOLDER}/")
+        for keyword_type, prefix in config.KEYWORD_PREFIX_MAPPING.items():
+            if prefix is not None:
+                folders = config.get_prefix_folders(prefix)
+                print(f"  - {folders['txt']}/")
         return
+
+    # 日時の昇順でソート
+    all_tweets.sort(key=lambda x: x.get('timestamp', datetime.min))
+
+    # CSVファイルに書き込み
+    output_folder = config.OUTPUT_FOLDER
+    csv_file = os.path.join(output_folder, "csv", "all_tweets.csv")
 
     # csvフォルダの作成
     csv_folder = config.CSV_OUTPUT_FOLDER
     if not os.path.exists(csv_folder):
         os.makedirs(csv_folder)
 
-    all_tweets = []
-
-    # 各txtファイルを処理
-    for txt_file in txt_files:
-        print(f"処理中: {os.path.basename(txt_file)}")
-        tweets = parse_txt_to_tweets(txt_file)
-        all_tweets.extend(tweets)
-
-    # 日時の昇順でソート
-    all_tweets.sort(key=lambda x: x.get('timestamp', datetime.min))
-
-    # CSVファイルに書き込み
     with open(csv_file, 'w', encoding='utf-8', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['ユーザー名', '日時', 'URL', 'ツイート内容', '元ファイル'])
@@ -119,7 +143,7 @@ def merge_all_txt_to_csv():
 
     print(f"マージ完了: {csv_file}")
     print(f"総ツイート数: {len(all_tweets)}")
-    print(f"処理したファイル数: {len(txt_files)}")
+    print(f"処理したファイル数: {len(processed_files)}")
 
 if __name__ == "__main__":
     merge_all_txt_to_csv()

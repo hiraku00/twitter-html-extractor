@@ -54,18 +54,21 @@ python main.py html --no-date
 ```bash
 python main.py html 250706 --keyword-type en
 python main.py html 250706 --search-keyword "ニュース ビザ"
+python main.py html 250706 --keyword-type chikirin
 ```
 
 - 設定ファイルのキーワード種類やカスタムキーワードで検索可能
+- `chikirin`キーワードタイプを使用すると、専用フォルダ（`data/input/chikirin/`、`data/output/chikirin/`）にファイルが保存されます
 
 ---
 
 ## コマンド例・検索クエリ・前提条件
 
-| コマンド例                      | 変換される検索クエリ                                                   | 前提条件（クリップボード等）                                      |
-| ------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `python main.py html 250706`    | `since:2025-07-06_00:00:00_JST until:2025-07-06_23:59:59_JST dtv ビザ` | なし（コマンド引数のみで OK）                                     |
-| `python main.py html --no-date` | `until:2025-07-06_12:34:56_JST dtv ビザ`                               | クリップボードに`until:YYYY-MM-DD_HH:MM:SS_JST`形式の文字列が必要 |
+| コマンド例                                           | 変換される検索クエリ                                                              | 前提条件（クリップボード等）                                      |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `python main.py html 250706`                         | `since:2025-07-06_00:00:00_JST until:2025-07-06_23:59:59_JST dtv ビザ`            | なし（コマンド引数のみで OK）                                     |
+| `python main.py html --no-date`                      | `until:2025-07-06_12:34:56_JST dtv ビザ`                                          | クリップボードに`until:YYYY-MM-DD_HH:MM:SS_JST`形式の文字列が必要 |
+| `python main.py html 250706 --keyword-type chikirin` | `since:2025-07-06_00:00:00_JST until:2025-07-06_23:59:59_JST #ちきりんセレクトTV` | なし（コマンド引数のみで OK）                                     |
 
 ---
 
@@ -159,10 +162,15 @@ twitter-html-extractor/
 │   └── create_twitter_html_auto.py
 ├── data/                         # データフォルダ
 │   ├── input/                    # 入力ファイル（スクリプトで自動生成）
+│   │   └── chikirin/            # chikirinキーワード用専用フォルダ
 │   └── output/                   # 出力ファイル
 │       ├── txt/                  # テキストファイル
 │       ├── json/                 # JSONファイル
-│       └── csv/                  # CSVファイル
+│       ├── csv/                  # CSVファイル
+│       └── chikirin/            # chikirinキーワード用専用フォルダ
+│           ├── txt/              # テキストファイル
+│           ├── json/             # JSONファイル
+│           └── csv/              # CSVファイル
 ├── docs/                         # ドキュメント
 │   └── README.md
 ├── tests/                        # テストファイル
@@ -187,6 +195,12 @@ twitter-html-extractor/
 
 ## 更新履歴
 
+- v1.5.0: chikirin キーワードタイプの追加と prefix 別フォルダ機能
+  - "#ちきりんセレクト TV"キーワードと"chikirin"prefix を追加
+  - prefix 別の専用フォルダ作成機能（`data/input/chikirin/`、`data/output/chikirin/`）
+  - HTML 作成、抽出、マージ処理で prefix 別フォルダを自動検出・使用
+  - 設定ファイルにキーワードタイプと prefix のマッピング機能を追加
+  - テストケースの追加と更新
 - v1.4.0: html コマンドの動作改善と--no-date オプションの追加
   - 通常の html コマンドで日付引数が必須に変更（YYMMDD 形式のみ）
   - `--no-since`を`--no-date`にリネーム（より分かりやすく）

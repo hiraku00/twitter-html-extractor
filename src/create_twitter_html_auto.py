@@ -60,7 +60,7 @@ def copy_html_with_extension(extension_button_pos):
     html_content = pyperclip.paste()
     return html_content
 
-def save_html_to_file(html_content, date_str):
+def save_html_to_file(html_content, date_str, keyword_type='default'):
     # date_str: '2025-07-09' または '250709' など
     if '-' in date_str:  # YYYY-MM-DD形式
         # 2025-07-10 -> 250710
@@ -79,8 +79,14 @@ def save_html_to_file(html_content, date_str):
         print(f"エラー: 不正な日付形式です: {date_str}")
         return None
 
-    output_dir = "data/input"
+    # prefixに基づいてフォルダを決定
+    prefix = config.KEYWORD_PREFIX_MAPPING.get(keyword_type)
+    folders = config.get_prefix_folders(prefix)
+    output_dir = folders['input']
+
+    # フォルダを作成
     os.makedirs(output_dir, exist_ok=True)
+
     filename = f"{yymmdd}.html"
     filepath = os.path.join(output_dir, filename)
     with open(filepath, 'w', encoding='utf-8') as f:
@@ -94,7 +100,7 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
         parser.add_argument('date', help='検索対象の日付 (YYMMDD形式)')
         parser.add_argument('--search-keyword', default=None,
                            help='検索キーワード (デフォルト: 設定ファイルから取得)')
-        parser.add_argument('--keyword-type', choices=['default', 'thai', 'en', 'custom'],
+        parser.add_argument('--keyword-type', choices=['default', 'thai', 'en', 'chikirin', 'custom'],
                            default='default', help='検索キーワードの種類')
         parser.add_argument('--no-date', action='store_true',
                            help='日付指定なしで検索する')
@@ -206,7 +212,7 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
 
         if html_content:
             # HTMLファイルに保存
-            filepath = save_html_to_file(html_content, date_str)
+            filepath = save_html_to_file(html_content, date_str, keyword_type)
             print(f"処理が完了しました！ファイル: {filepath}")
             return filepath  # 成功時はファイルパスを返す
         else:
