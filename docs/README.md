@@ -60,6 +60,36 @@ python main.py html 250706 --keyword-type chikirin
 - 設定ファイルのキーワード種類やカスタムキーワードで検索可能
 - `chikirin`キーワードタイプを使用すると、専用フォルダ（`data/input/chikirin/`、`data/output/chikirin/`）にファイルが保存されます
 
+### キーワードタイプ別フォルダ機能
+
+キーワードタイプを指定すると、自動的に専用フォルダが作成され、データが分離管理されます：
+
+- **デフォルトキーワード**: `data/input/`, `data/output/txt/`, `data/output/json/`, `data/output/csv/`
+- **chikirin キーワード**: `data/input/chikirin/`, `data/output/chikirin/txt/`, `data/output/chikirin/json/`, `data/output/chikirin/csv/`
+- **その他のキーワード**: `data/input/{prefix}/`, `data/output/{prefix}/txt/`, `data/output/{prefix}/json/`, `data/output/{prefix}/csv/`
+
+この機能により、異なる検索条件のデータを混在させることなく、整理して管理できます。
+
+### マージ機能
+
+```bash
+# デフォルトキーワードタイプのファイルをマージ
+python main.py merge
+
+# 特定キーワードタイプのみマージ
+python main.py merge --keyword-type chikirin
+python main.py merge --keyword-type thai
+python main.py merge --keyword-type en
+```
+
+マージ機能では、指定されたキーワードタイプの txt ファイルのみを対象として CSV ファイルを作成します：
+
+- **デフォルトキーワード**: `data/output/csv/all_tweets.csv`
+- **chikirin キーワード**: `data/output/chikirin/csv/chikirin_tweets.csv`
+- **その他のキーワード**: `data/output/{prefix}/csv/{keyword_type}_tweets.csv`
+
+これにより、キーワードタイプ別に分離されたデータ分析が可能になります。
+
 ---
 
 ## コマンド例・検索クエリ・前提条件
@@ -118,7 +148,9 @@ python main.py html --no-date
 - **extract コマンド**
   - `python main.py extract <YYMMDD>`: 既存 HTML から抽出のみ
 - **merge コマンド**
-  - `python main.py merge`: 全ファイルをマージして CSV 作成
+  - `python main.py merge`: デフォルトキーワードタイプのファイルをマージして CSV 作成
+  - `python main.py merge --keyword-type <type>`: 特定キーワードタイプのみマージ
+  - 使用可能なキーワードタイプ: `default`, `thai`, `en`, `chikirin`, `custom`
 
 ---
 
@@ -195,6 +227,12 @@ twitter-html-extractor/
 
 ## 更新履歴
 
+- v1.6.0: キーワードタイプ別フォルダ機能と分離マージ機能の実装
+  - キーワードタイプ指定時に prefix 別フォルダが自動作成される機能を実装
+  - HTML ファイルの自動検出機能（prefix 別フォルダ優先）を実装
+  - マージ機能に--keyword-type オプションを追加（特定キーワードタイプのみマージ）
+  - 分離 CSV ファイル作成機能を実装（all_tweets.csv, chikirin_tweets.csv 等）
+  - prefix 別データフォルダ用の gitignore パターンを追加
 - v1.5.0: chikirin キーワードタイプの追加と prefix 別フォルダ機能
   - "#ちきりんセレクト TV"キーワードと"chikirin"prefix を追加
   - prefix 別の専用フォルダ作成機能（`data/input/chikirin/`、`data/output/chikirin/`）

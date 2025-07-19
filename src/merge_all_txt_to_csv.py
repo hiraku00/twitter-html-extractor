@@ -73,60 +73,55 @@ def parse_txt_to_tweets(txt_file_path):
 
     return tweets
 
-def merge_all_txt_to_csv():
-    """全てのtxtファイルをマージしてCSVファイルを作成"""
+def merge_all_txt_to_csv(keyword_type='default'):
+    """指定されたキーワードタイプのtxtファイルをマージしてCSVファイルを作成"""
 
     all_tweets = []
     processed_files = []
 
-    # 通常のフォルダからtxtファイルを取得
-    txt_folder = config.TXT_OUTPUT_FOLDER
+    # キーワードタイプの検証
+    if keyword_type not in config.KEYWORD_PREFIX_MAPPING:
+        print(f"エラー: 無効なキーワードタイプ '{keyword_type}'")
+        print(f"使用可能なキーワードタイプ: {', '.join(config.KEYWORD_PREFIX_MAPPING.keys())}")
+        return
+
+    # 指定されたキーワードタイプのフォルダからtxtファイルを取得
+    prefix = config.KEYWORD_PREFIX_MAPPING.get(keyword_type)
+    folders = config.get_prefix_folders(prefix)
+    txt_folder = folders['txt']
     txt_files = glob.glob(os.path.join(txt_folder, "*.txt"))
 
     if txt_files:
-        print(f"通常フォルダから {len(txt_files)} ファイルを処理:")
+        print(f"{keyword_type}フォルダから {len(txt_files)} ファイルを処理:")
         for txt_file in txt_files:
             print(f"  処理中: {os.path.basename(txt_file)}")
             tweets = parse_txt_to_tweets(txt_file)
             all_tweets.extend(tweets)
             processed_files.append(txt_file)
-
-    # prefix別フォルダからtxtファイルを取得
-    for keyword_type, prefix in config.KEYWORD_PREFIX_MAPPING.items():
-        if prefix is not None:
-            folders = config.get_prefix_folders(prefix)
-            prefix_txt_folder = folders['txt']
-            prefix_txt_files = glob.glob(os.path.join(prefix_txt_folder, "*.txt"))
-
-            if prefix_txt_files:
-                print(f"{prefix}フォルダから {len(prefix_txt_files)} ファイルを処理:")
-                for txt_file in prefix_txt_files:
-                    print(f"  処理中: {os.path.basename(txt_file)}")
-                    tweets = parse_txt_to_tweets(txt_file)
-                    all_tweets.extend(tweets)
-                    processed_files.append(txt_file)
+    else:
+        print(f"{keyword_type}フォルダにtxtファイルが見つかりません。")
+        print(f"確認してください: {txt_folder}/")
+        return
 
     if not processed_files:
         print("txtファイルが見つかりません。")
-        print("以下の場所を確認してください:")
-        print(f"  - {config.TXT_OUTPUT_FOLDER}/")
-        for keyword_type, prefix in config.KEYWORD_PREFIX_MAPPING.items():
-            if prefix is not None:
-                folders = config.get_prefix_folders(prefix)
-                print(f"  - {folders['txt']}/")
         return
 
     # 日時の昇順でソート
     all_tweets.sort(key=lambda x: x.get('timestamp', datetime.min))
 
-    # CSVファイルに書き込み
-    output_folder = config.OUTPUT_FOLDER
-    csv_file = os.path.join(output_folder, "csv", "all_tweets.csv")
+    # CSVファイル名を決定
+    if keyword_type == 'default':
+        csv_filename = "all_tweets.csv"
+    else:
+        csv_filename = f"{keyword_type}_tweets.csv"
 
-    # csvフォルダの作成
-    csv_folder = config.CSV_OUTPUT_FOLDER
+    # CSVファイルに書き込み
+    csv_folder = folders['csv']
     if not os.path.exists(csv_folder):
         os.makedirs(csv_folder)
+
+    csv_file = os.path.join(csv_folder, csv_filename)
 
     with open(csv_file, 'w', encoding='utf-8', newline='') as f:
         writer = csv.writer(f)
