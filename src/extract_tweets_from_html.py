@@ -198,40 +198,31 @@ def main():
     html_file = None
     prefix = None
 
-    # まず通常のフォルダで検索
-    input_folder = config.INPUT_FOLDER
-    html_file = os.path.join(input_folder, f"{args.date}.html")
+    # まずprefix別フォルダで検索（優先）
+    for keyword_type, p in config.KEYWORD_PREFIX_MAPPING.items():
+        if p is not None:
+            folders = config.get_prefix_folders(p)
+            test_html_file = os.path.join(folders['input'], f"{args.date}.html")
+            if os.path.exists(test_html_file):
+                html_file = test_html_file
+                prefix = p  # prefixを設定
+                break
 
-    if not os.path.exists(html_file):
-        # 通常のフォルダにない場合、prefix別フォルダを検索
-        for keyword_type, prefix in config.KEYWORD_PREFIX_MAPPING.items():
-            if prefix is not None:
-                folders = config.get_prefix_folders(prefix)
-                test_html_file = os.path.join(folders['input'], f"{args.date}.html")
-                if os.path.exists(test_html_file):
-                    html_file = test_html_file
-                    break
+    # prefix別フォルダにない場合、通常のフォルダで検索
+    if html_file is None:
+        input_folder = config.INPUT_FOLDER
+        html_file = os.path.join(input_folder, f"{args.date}.html")
+        prefix = None  # 通常フォルダの場合はprefixなし
 
     if html_file is None or not os.path.exists(html_file):
         print(f"エラー: ファイル '{args.date}.html' が見つかりません。")
         print("以下の場所を確認してください:")
-        print(f"  - {config.INPUT_FOLDER}/")
-        for keyword_type, prefix in config.KEYWORD_PREFIX_MAPPING.items():
-            if prefix is not None:
-                folders = config.get_prefix_folders(prefix)
-                print(f"  - {folders['input']}/")
-        sys.exit(1)
-
-    # prefixを決定
-    if html_file.startswith(config.INPUT_FOLDER):
-        prefix = None
-    else:
         for keyword_type, p in config.KEYWORD_PREFIX_MAPPING.items():
             if p is not None:
                 folders = config.get_prefix_folders(p)
-                if html_file.startswith(folders['input']):
-                    prefix = p
-                    break
+                print(f"  - {folders['input']}/")
+        print(f"  - {config.INPUT_FOLDER}/")
+        sys.exit(1)
 
     # 出力フォルダの設定
     folders = config.get_prefix_folders(prefix)
