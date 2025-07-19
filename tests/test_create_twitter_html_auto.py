@@ -252,7 +252,7 @@ class TestCreateTwitterHtmlAuto(unittest.TestCase):
         from src.create_twitter_html_auto import main
 
         # 各キーワードタイプをテスト
-        keyword_types = ['default', 'thai', 'en', 'custom']
+        keyword_types = ['default', 'thai', 'en', 'chikirin', 'custom']
 
         for keyword_type in keyword_types:
             with self.subTest(keyword_type=keyword_type):

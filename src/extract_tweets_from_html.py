@@ -194,22 +194,43 @@ def main():
 
     args = parser.parse_args()
 
-    # 入力・出力フォルダの設定
-    input_folder = config.INPUT_FOLDER
-    output_folder = config.OUTPUT_FOLDER
+    # HTMLファイルの場所を自動検出
+    html_file = None
+    prefix = None
 
-    # HTMLファイル名を生成
-    html_file = os.path.join(input_folder, f"{args.date}.html")
-    output_filename = os.path.join(output_folder, "txt", args.date)
+    # まずprefix別フォルダで検索（優先）
+    for keyword_type, p in config.KEYWORD_PREFIX_MAPPING.items():
+        if p is not None:
+            folders = config.get_prefix_folders(p)
+            test_html_file = os.path.join(folders['input'], f"{args.date}.html")
+            if os.path.exists(test_html_file):
+                html_file = test_html_file
+                prefix = p  # prefixを設定
+                break
 
-    # 入力フォルダの存在確認
-    if not os.path.exists(input_folder):
-        print(f"エラー: 入力フォルダ '{input_folder}' が存在しません。")
+    # prefix別フォルダにない場合、通常のフォルダで検索
+    if html_file is None:
+        input_folder = config.INPUT_FOLDER
+        html_file = os.path.join(input_folder, f"{args.date}.html")
+        prefix = None  # 通常フォルダの場合はprefixなし
+
+    if html_file is None or not os.path.exists(html_file):
+        print(f"エラー: ファイル '{args.date}.html' が見つかりません。")
+        print("以下の場所を確認してください:")
+        for keyword_type, p in config.KEYWORD_PREFIX_MAPPING.items():
+            if p is not None:
+                folders = config.get_prefix_folders(p)
+                print(f"  - {folders['input']}/")
+        print(f"  - {config.INPUT_FOLDER}/")
         sys.exit(1)
 
+    # 出力フォルダの設定
+    folders = config.get_prefix_folders(prefix)
+    output_filename = os.path.join(folders['txt'], args.date)
+
     # 出力フォルダの作成
-    txt_output_folder = config.TXT_OUTPUT_FOLDER
-    json_output_folder = config.JSON_OUTPUT_FOLDER
+    txt_output_folder = folders['txt']
+    json_output_folder = folders['json']
 
     if not os.path.exists(txt_output_folder):
         os.makedirs(txt_output_folder)
@@ -218,11 +239,6 @@ def main():
     if not os.path.exists(json_output_folder):
         os.makedirs(json_output_folder)
         print(f"出力フォルダ '{json_output_folder}' を作成しました。")
-
-    # HTMLファイルの存在確認
-    if not os.path.exists(html_file):
-        print(f"エラー: ファイル '{html_file}' が存在しません。")
-        sys.exit(1)
 
     print(f"{html_file} からツイートを抽出しています...")
 

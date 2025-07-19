@@ -12,28 +12,34 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 from extract_tweets_from_html import main as extract_main
 from merge_all_txt_to_csv import merge_all_txt_to_csv
 from create_twitter_html_auto import main as create_twitter_html_auto_main
+import config
 
 def main():
     """メインエントリーポイント"""
     if len(sys.argv) < 2:
         print("使用方法:")
         print("  ツイート抽出: python main.py extract <日付>")
-        print("  マージ実行:   python main.py merge")
+        print("  マージ実行:   python main.py merge [--keyword-type <type>]")
         print("  HTML作成:     python main.py html <日付> [オプション]")
         print("  Twitter自動化: python main.py auto <日付>")
         print("")
         print("HTML作成のオプション:")
         print("  --no-date: 日付指定なしで検索（untilは指定、日付引数不要）")
-        print("  --keyword-type <type>: 検索キーワードの種類 (default, thai, en, custom)")
+        print("  --keyword-type <type>: 検索キーワードの種類 (default, thai, en, chikirin, custom)")
         print("  --search-keyword <keyword>: カスタム検索キーワード")
+        print("")
+        print("マージ実行のオプション:")
+        print("  --keyword-type <type>: 特定キーワードタイプのみマージ (default, thai, en, chikirin, custom)")
         print("")
         print("例:")
         print("  python main.py extract 250706")
         print("  python main.py merge")
+        print("  python main.py merge --keyword-type chikirin")
         print("  python main.py html 250701")
         print("  python main.py html --no-date")
         print("  python main.py html --no-date --keyword-type thai")
         print("  python main.py html 250701 --search-keyword 'ニュース ビザ'")
+        print("  python main.py html 250701 --keyword-type chikirin")
         print("  python main.py auto 2025-01-15")
         sys.exit(1)
 
@@ -51,7 +57,23 @@ def main():
         extract_main()
 
     elif command == "merge":
-        merge_all_txt_to_csv()
+        # オプション引数の解析
+        keyword_type = 'default'
+
+        i = 2
+        while i < len(sys.argv):
+            if sys.argv[i] == '--keyword-type' and i + 1 < len(sys.argv):
+                keyword_type = sys.argv[i + 1]
+                i += 1
+            i += 1
+
+        # キーワードタイプの検証
+        if keyword_type not in config.KEYWORD_PREFIX_MAPPING:
+            print(f"エラー: 無効なキーワードタイプ '{keyword_type}'")
+            print(f"使用可能なキーワードタイプ: {', '.join(config.KEYWORD_PREFIX_MAPPING.keys())}")
+            sys.exit(1)
+
+        merge_all_txt_to_csv(keyword_type)
 
     elif command == "html":
         # オプション引数の解析

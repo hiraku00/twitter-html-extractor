@@ -19,7 +19,43 @@ class TestConfig(unittest.TestCase):
         self.assertIn('default', config.SEARCH_KEYWORDS)
         self.assertIn('thai', config.SEARCH_KEYWORDS)
         self.assertIn('en', config.SEARCH_KEYWORDS)
+        self.assertIn('chikirin', config.SEARCH_KEYWORDS)
         self.assertIn('custom', config.SEARCH_KEYWORDS)
+
+    def test_keyword_prefix_mapping(self):
+        """キーワードタイプとprefixのマッピングが正しく設定されていることを確認"""
+        self.assertIn('default', config.KEYWORD_PREFIX_MAPPING)
+        self.assertIn('thai', config.KEYWORD_PREFIX_MAPPING)
+        self.assertIn('en', config.KEYWORD_PREFIX_MAPPING)
+        self.assertIn('chikirin', config.KEYWORD_PREFIX_MAPPING)
+        self.assertIn('custom', config.KEYWORD_PREFIX_MAPPING)
+
+        # chikirinのprefixが正しく設定されていることを確認
+        self.assertEqual(config.KEYWORD_PREFIX_MAPPING['chikirin'], 'chikirin')
+
+        # 他のキーワードタイプはprefixがNoneであることを確認
+        self.assertIsNone(config.KEYWORD_PREFIX_MAPPING['default'])
+        self.assertIsNone(config.KEYWORD_PREFIX_MAPPING['thai'])
+        self.assertIsNone(config.KEYWORD_PREFIX_MAPPING['en'])
+        self.assertIsNone(config.KEYWORD_PREFIX_MAPPING['custom'])
+
+    def test_get_prefix_folders(self):
+        """prefix別フォルダ取得機能のテスト"""
+        # prefixなしの場合
+        folders = config.get_prefix_folders(None)
+        self.assertEqual(folders['input'], config.INPUT_FOLDER)
+        self.assertEqual(folders['output'], config.OUTPUT_FOLDER)
+        self.assertEqual(folders['txt'], config.TXT_OUTPUT_FOLDER)
+        self.assertEqual(folders['json'], config.JSON_OUTPUT_FOLDER)
+        self.assertEqual(folders['csv'], config.CSV_OUTPUT_FOLDER)
+
+        # chikirin prefixの場合
+        folders = config.get_prefix_folders('chikirin')
+        self.assertEqual(folders['input'], 'data/input/chikirin')
+        self.assertEqual(folders['output'], 'data/output/chikirin')
+        self.assertEqual(folders['txt'], 'data/output/chikirin/txt')
+        self.assertEqual(folders['json'], 'data/output/chikirin/json')
+        self.assertEqual(folders['csv'], 'data/output/chikirin/csv')
 
     def test_default_search_keyword(self):
         """デフォルト検索キーワードが設定されていることを確認"""

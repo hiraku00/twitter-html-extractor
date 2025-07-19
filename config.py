@@ -12,7 +12,17 @@ SEARCH_KEYWORDS = {
     'default': 'dtv ビザ',
     'thai': 'dtv タイ',
     'en': 'dtv visa',
+    'chikirin': '#ちきりんセレクトTV',
     'custom': None  # カスタムキーワード用
+}
+
+# キーワードタイプとprefixのマッピング
+KEYWORD_PREFIX_MAPPING = {
+    'default': None,
+    'thai': None,
+    'en': None,
+    'chikirin': 'chikirin',
+    'custom': None
 }
 
 # ファイルパス設定
@@ -21,6 +31,26 @@ OUTPUT_FOLDER = "data/output"
 TXT_OUTPUT_FOLDER = "data/output/txt"
 JSON_OUTPUT_FOLDER = "data/output/json"
 CSV_OUTPUT_FOLDER = "data/output/csv"
+
+# prefix別のフォルダ設定
+def get_prefix_folders(prefix):
+    """prefixに基づいてフォルダパスを取得"""
+    if prefix is None:
+        return {
+            'input': INPUT_FOLDER,
+            'output': OUTPUT_FOLDER,
+            'txt': TXT_OUTPUT_FOLDER,
+            'json': JSON_OUTPUT_FOLDER,
+            'csv': CSV_OUTPUT_FOLDER
+        }
+    else:
+        return {
+            'input': f"data/input/{prefix}",
+            'output': f"data/output/{prefix}",
+            'txt': f"data/output/{prefix}/txt",
+            'json': f"data/output/{prefix}/json",
+            'csv': f"data/output/{prefix}/csv"
+        }
 
 # 日付形式設定
 DATE_FORMAT = '%Y-%m-%d'
