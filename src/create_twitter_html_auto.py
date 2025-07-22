@@ -100,7 +100,7 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
         parser.add_argument('date', help='検索対象の日付 (YYMMDD形式)')
         parser.add_argument('--search-keyword', default=None,
                            help='検索キーワード (デフォルト: 設定ファイルから取得)')
-        parser.add_argument('--keyword-type', choices=['default', 'thai', 'en', 'chikirin', 'custom'],
+        parser.add_argument('--keyword-type', '-k', choices=['default', 'thai', 'en', 'chikirin', 'custom'],
                            default='default', help='検索キーワードの種類')
         parser.add_argument('--no-date', action='store_true',
                            help='日付指定なしで検索する')

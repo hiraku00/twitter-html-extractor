@@ -62,7 +62,7 @@ def main():
 
         i = 2
         while i < len(sys.argv):
-            if sys.argv[i] == '--keyword-type' and i + 1 < len(sys.argv):
+            if (sys.argv[i] == '--keyword-type' or sys.argv[i] == '-k') and i + 1 < len(sys.argv):
                 keyword_type = sys.argv[i + 1]
                 i += 1
             i += 1
@@ -85,7 +85,7 @@ def main():
         while i < len(sys.argv):
             if sys.argv[i] == '--no-date':
                 use_date = False
-            elif sys.argv[i] == '--keyword-type' and i + 1 < len(sys.argv):
+            elif (sys.argv[i] == '--keyword-type' or sys.argv[i] == '-k') and i + 1 < len(sys.argv):
                 keyword_type = sys.argv[i + 1]
                 i += 1
             elif sys.argv[i] == '--search-keyword' and i + 1 < len(sys.argv):
