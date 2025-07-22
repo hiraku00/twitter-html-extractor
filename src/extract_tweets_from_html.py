@@ -13,6 +13,10 @@ import config
 
 def extract_tweets_from_html(html_file_path):
     """HTMLファイルからツイートデータを抽出"""
+    
+    if not os.path.exists(html_file_path):
+        print(f"エラー: ファイルが存在しません: {html_file_path}")
+        return []
 
     # HTMLファイルを読み込み
     with open(html_file_path, 'r', encoding='utf-8') as f:
@@ -194,22 +198,24 @@ def main():
 
     args = parser.parse_args()
 
-    # HTMLファイルの場所を自動検出
+    # パス情報ファイルを確認
+    path_info_file = os.path.join(config.DATA_DIR, '.path_info', f"{args.date}.txt")
     html_file = None
     prefix = None
-
-    # まずprefix別フォルダで検索（優先）
-    for keyword_type, p in config.KEYWORD_PREFIX_MAPPING.items():
-        if p is not None:
-            folders = config.get_prefix_folders(p)
-            test_html_file = os.path.join(folders['input'], f"{args.date}.html")
-            if os.path.exists(test_html_file):
-                html_file = test_html_file
-                prefix = p  # prefixを設定
-                break
-
-    # prefix別フォルダにない場合、通常のフォルダで検索
-    if html_file is None:
+    
+    if os.path.exists(path_info_file):
+        # パス情報ファイルから情報を読み取る
+        with open(path_info_file, 'r', encoding='utf-8') as f:
+            path_info = dict(line.strip().split('=') for line in f if '=' in line)
+            
+        if 'input_dir' in path_info and 'filename' in path_info:
+            html_file = os.path.join(path_info['input_dir'], path_info['filename'])
+            if 'keyword_type' in path_info:
+                keyword_type = path_info['keyword_type']
+                prefix = config.KEYWORD_PREFIX_MAPPING.get(keyword_type)
+    
+    # パス情報が見つからない場合は、通常のフォルダで検索
+    if html_file is None or not os.path.exists(html_file):
         input_folder = config.INPUT_FOLDER
         html_file = os.path.join(input_folder, f"{args.date}.html")
         prefix = None  # 通常フォルダの場合はprefixなし
