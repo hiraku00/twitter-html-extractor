@@ -89,19 +89,9 @@ def save_html_to_file(html_content, date_str, keyword_type='default'):
 
     filename = f"{yymmdd}.html"
     filepath = os.path.join(output_dir, filename)
-    
-    # HTMLファイル保存
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(html_content)
     print(f"HTMLファイルを保存しました: {filepath}")
-
-    # パス情報を保存
-    path_info_dir = os.path.join(config.DATA_DIR, '.path_info')
-    os.makedirs(path_info_dir, exist_ok=True)
-    path_info_file = os.path.join(path_info_dir, f"{yymmdd}.txt")
-    with open(path_info_file, 'w', encoding='utf-8') as f:
-        f.write(f"input_dir={output_dir}\nfilename={filename}\nkeyword_type={keyword_type}")
-    
     return filepath
 
 def main(date_str=None, search_keyword=None, use_date=True, keyword_type='default'):
