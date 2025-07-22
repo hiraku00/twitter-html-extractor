@@ -143,7 +143,8 @@ def main():
                 print(f"extract処理を実行: {extract_date}")
                 # extract_main関数を呼び出すために引数を設定
                 original_argv = sys.argv.copy()
-                sys.argv = [sys.argv[0], extract_date]
+                # keyword_typeを渡すように修正
+                sys.argv = [sys.argv[0], extract_date, '--keyword-type', keyword_type] if keyword_type != 'default' else [sys.argv[0], extract_date]
                 extract_main()
                 sys.argv = original_argv
                 print("自動extract処理が完了しました")
