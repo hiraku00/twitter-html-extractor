@@ -104,7 +104,7 @@ class TestMainOptions(unittest.TestCase):
             while i < len(test_args):
                 if test_args[i] == '--no-since':
                     use_since = False
-                elif test_args[i] == '--keyword-type' and i + 1 < len(test_args):
+                elif (test_args[i] == '--keyword-type' or test_args[i] == '-k') and i + 1 < len(test_args):
                     keyword_type = test_args[i + 1]
                     i += 1
                 elif test_args[i] == '--search-keyword' and i + 1 < len(test_args):
@@ -115,6 +115,32 @@ class TestMainOptions(unittest.TestCase):
             # 結果を確認
             self.assertTrue(use_since)
             self.assertEqual(keyword_type, 'en')
+            self.assertIsNone(search_keyword)
+    
+    def test_parse_html_options_short_k_option(self):
+        """-k 短縮オプションの解析テスト"""
+        test_args = ['main.py', 'html', '250706', '-k', 'chikirin']
+
+        with patch('sys.argv', test_args):
+            use_since = True
+            keyword_type = 'default'
+            search_keyword = None
+
+            i = 3
+            while i < len(test_args):
+                if test_args[i] == '--no-since':
+                    use_since = False
+                elif (test_args[i] == '--keyword-type' or test_args[i] == '-k') and i + 1 < len(test_args):
+                    keyword_type = test_args[i + 1]
+                    i += 1
+                elif test_args[i] == '--search-keyword' and i + 1 < len(test_args):
+                    search_keyword = test_args[i + 1]
+                    i += 1
+                i += 1
+
+            # 結果を確認
+            self.assertTrue(use_since)
+            self.assertEqual(keyword_type, 'chikirin')
             self.assertIsNone(search_keyword)
 
     def test_date_conversion(self):

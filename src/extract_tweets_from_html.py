@@ -191,7 +191,7 @@ def main():
     # コマンドライン引数の解析
     parser = argparse.ArgumentParser(description='HTMLファイルからツイートを抽出します')
     parser.add_argument('date', help='日付（例: 250706, 250624）')
-    parser.add_argument('--keyword-type', help='キーワードタイプ (default, thai, en, chikirin, custom)', default='default')
+    parser.add_argument('--keyword-type', '-k', help='キーワードタイプ (default, thai, en, chikirin, custom)', default='default')
 
     args = parser.parse_args()
 

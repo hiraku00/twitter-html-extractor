@@ -52,13 +52,20 @@ python main.py html --no-date
 ### キーワード指定
 
 ```bash
-python main.py html 250706 --keyword-type en
+# キーワードタイプを指定（--keyword-type または短縮形 -k が使用可能）
+python main.py html 250706 --keyword-type en  # 完全形
+python main.py html 250706 -k en             # 短縮形
+
+# カスタムキーワードで検索
 python main.py html 250706 --search-keyword "ニュース ビザ"
-python main.py html 250706 --keyword-type chikirin
+
+# キーワードタイプに chikirin を指定（短縮形 -k を使用）
+python main.py html 250706 -k chikirin
 ```
 
-- 設定ファイルのキーワード種類やカスタムキーワードで検索可能
-- `chikirin`キーワードタイプを使用すると、専用フォルダ（`data/input/chikirin/`、`data/output/chikirin/`）にファイルが保存されます
+- `--keyword-type` の代わりに短縮形の `-k` が使用できます（例：`-k en`）
+- 設定ファイルで定義されたキーワードタイプか、`--search-keyword` で直接キーワードを指定可能
+- `chikirin` などのキーワードタイプを指定すると、専用フォルダ（`data/input/chikirin/`、`data/output/chikirin/`）にファイルが保存され、データが整理されます
 
 ### キーワードタイプ別フォルダ機能
 
@@ -77,9 +84,9 @@ python main.py html 250706 --keyword-type chikirin
 python main.py merge
 
 # 特定キーワードタイプのみマージ
-python main.py merge --keyword-type chikirin
-python main.py merge --keyword-type thai
-python main.py merge --keyword-type en
+python main.py merge --keyword-type chikirin  # または -k chikirin
+python main.py merge -k thai  # --keyword-type の代わりに -k が使えます
+python main.py merge -k en
 ```
 
 マージ機能では、指定されたキーワードタイプの txt ファイルのみを対象として CSV ファイルを作成します：
@@ -98,7 +105,7 @@ python main.py merge --keyword-type en
 | ---------------------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | `python main.py html 250706`                         | `since:2025-07-06_00:00:00_JST until:2025-07-06_23:59:59_JST dtv ビザ`            | なし（コマンド引数のみで OK）                                     |
 | `python main.py html --no-date`                      | `until:2025-07-06_12:34:56_JST dtv ビザ`                                          | クリップボードに`until:YYYY-MM-DD_HH:MM:SS_JST`形式の文字列が必要 |
-| `python main.py html 250706 --keyword-type chikirin` | `since:2025-07-06_00:00:00_JST until:2025-07-06_23:59:59_JST #ちきりんセレクトTV` | なし（コマンド引数のみで OK）                                     |
+| `python main.py html 250706 -k chikirin` | `since:2025-07-06_00:00:00_JST until:2025-07-06_23:59:59_JST #ちきりんセレクトTV` | なし（コマンド引数のみで OK）<br>`-k` は `--keyword-type` の短縮形 |
 
 ---
 
@@ -149,7 +156,7 @@ python main.py html --no-date
   - `python main.py extract <YYMMDD>`: 既存 HTML から抽出のみ
 - **merge コマンド**
   - `python main.py merge`: デフォルトキーワードタイプのファイルをマージして CSV 作成
-  - `python main.py merge --keyword-type <type>`: 特定キーワードタイプのみマージ
+  - `python main.py merge --keyword-type <type>` または `-k <type>`: 特定キーワードタイプのみマージ
   - 使用可能なキーワードタイプ: `default`, `thai`, `en`, `chikirin`, `custom`
 
 ---

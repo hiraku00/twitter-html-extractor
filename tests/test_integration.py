@@ -94,7 +94,7 @@ class TestIntegration(unittest.TestCase):
             while i < len(test_args):
                 if test_args[i] == '--no-since':
                     use_since = False
-                elif test_args[i] == '--keyword-type' and i + 1 < len(test_args):
+                elif (test_args[i] == '--keyword-type' or test_args[i] == '-k') and i + 1 < len(test_args):
                     keyword_type = test_args[i + 1]
                     i += 1
                 elif test_args[i] == '--search-keyword' and i + 1 < len(test_args):
@@ -132,7 +132,39 @@ class TestIntegration(unittest.TestCase):
             while i < len(test_args):
                 if test_args[i] == '--no-since':
                     use_since = False
-                elif test_args[i] == '--keyword-type' and i + 1 < len(test_args):
+                elif (test_args[i] == '--keyword-type' or test_args[i] == '-k') and i + 1 < len(test_args):
+                    keyword_type = test_args[i + 1]
+                    i += 1
+                elif test_args[i] == '--search-keyword' and i + 1 < len(test_args):
+                    search_keyword = test_args[i + 1]
+                    i += 1
+                i += 1
+                
+    @patch('src.create_twitter_html_auto.main')
+    def test_main_html_with_short_k_option(self, mock_create_html):
+        """main.pyのhtmlコマンドで-k 短縮オプションをテスト"""
+        # テスト用のsys.argvを設定
+        test_args = ['main.py', 'html', '250513', '-k', 'en']
+
+        with patch('sys.argv', test_args):
+            # main.pyのhtmlコマンド部分をテスト
+            yymmdd = test_args[2]
+            if len(yymmdd) == 6:
+                year = 2000 + int(yymmdd[:2])
+                date_str = f"{year:04d}-{yymmdd[2:4]}-{yymmdd[4:6]}"
+            else:
+                date_str = None
+
+            # オプション解析
+            use_since = True
+            keyword_type = 'default'
+            search_keyword = None
+
+            i = 3
+            while i < len(test_args):
+                if test_args[i] == '--no-since':
+                    use_since = False
+                elif (test_args[i] == '--keyword-type' or test_args[i] == '-k') and i + 1 < len(test_args):
                     keyword_type = test_args[i + 1]
                     i += 1
                 elif test_args[i] == '--search-keyword' and i + 1 < len(test_args):
@@ -143,7 +175,7 @@ class TestIntegration(unittest.TestCase):
             # 結果を確認
             self.assertEqual(date_str, "2025-05-13")
             self.assertTrue(use_since)
-            self.assertEqual(keyword_type, 'chikirin')
+            self.assertEqual(keyword_type, 'en')
             self.assertIsNone(search_keyword)
 
     def test_search_query_actual_behavior(self):
