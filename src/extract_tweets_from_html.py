@@ -191,28 +191,41 @@ def main():
     # コマンドライン引数の解析
     parser = argparse.ArgumentParser(description='HTMLファイルからツイートを抽出します')
     parser.add_argument('date', help='日付（例: 250706, 250624）')
+    parser.add_argument('--keyword-type', help='キーワードタイプ (default, thai, en, chikirin, custom)', default='default')
 
     args = parser.parse_args()
 
-    # HTMLファイルの場所を自動検出
+    # HTMLファイルの場所を検索
     html_file = None
     prefix = None
 
-    # まずprefix別フォルダで検索（優先）
-    for keyword_type, p in config.KEYWORD_PREFIX_MAPPING.items():
-        if p is not None:
-            folders = config.get_prefix_folders(p)
-            test_html_file = os.path.join(folders['input'], f"{args.date}.html")
-            if os.path.exists(test_html_file):
-                html_file = test_html_file
-                prefix = p  # prefixを設定
-                break
+    # 指定されたkeyword_typeに基づいてファイルを検索
+    if args.keyword_type in config.KEYWORD_PREFIX_MAPPING:
+        prefix = config.KEYWORD_PREFIX_MAPPING[args.keyword_type]
+        if prefix is not None:
+            # prefixが指定されている場合はそのフォルダを検索
+            folders = config.get_prefix_folders(prefix)
+            html_file = os.path.join(folders['input'], f"{args.date}.html")
+        else:
+            # prefixがNoneの場合は通常のフォルダを検索
+            html_file = os.path.join(config.INPUT_FOLDER, f"{args.date}.html")
+    
+    # 指定された場所にファイルがない場合は自動検索
+    if html_file is None or not os.path.exists(html_file):
+        # まずprefix別フォルダで検索（優先）
+        for keyword_type, p in config.KEYWORD_PREFIX_MAPPING.items():
+            if p is not None:
+                folders = config.get_prefix_folders(p)
+                test_html_file = os.path.join(folders['input'], f"{args.date}.html")
+                if os.path.exists(test_html_file):
+                    html_file = test_html_file
+                    prefix = p  # prefixを設定
+                    break
 
-    # prefix別フォルダにない場合、通常のフォルダで検索
-    if html_file is None:
-        input_folder = config.INPUT_FOLDER
-        html_file = os.path.join(input_folder, f"{args.date}.html")
-        prefix = None  # 通常フォルダの場合はprefixなし
+        # それでも見つからない場合は通常のフォルダを検索
+        if html_file is None or not os.path.exists(html_file):
+            html_file = os.path.join(config.INPUT_FOLDER, f"{args.date}.html")
+            prefix = None  # 通常フォルダの場合はprefixなし
 
     if html_file is None or not os.path.exists(html_file):
         print(f"エラー: ファイル '{args.date}.html' が見つかりません。")
