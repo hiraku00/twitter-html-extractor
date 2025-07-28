@@ -27,16 +27,10 @@ def get_position(prompt):
 
 def navigate_to_twitter_search(search_query, search_box_pos):
     """Twitterの検索ボックスに検索クエリを入力する"""
-    # 検索ボックスをクリック
+    # 検索ボックスをクリック & xボタンをクリック
     pyautogui.click(search_box_pos)
     pyautogui.click(search_box_pos)
     time.sleep(0.5)
-
-    # # 既存の内容をクリア（command + a）
-    # pyautogui.hotkey('command', 'a')
-    # time.sleep(0.5)
-    # pyautogui.press('delete')
-    # time.sleep(1)
 
     # 検索クエリをクリップボードにコピーして貼り付け
     import pyperclip
@@ -44,17 +38,16 @@ def navigate_to_twitter_search(search_query, search_box_pos):
     pyperclip.copy(search_query)
     print(f'search_query : {search_query}')
     pyautogui.hotkey('command', 'v')
-    # time.sleep(0.5)
 
     # Enterキーを押して検索を実行
     pyautogui.press('enter')
-    time.sleep(3)  # 検索結果の読み込みを待つ
+    time.sleep(1)  # 検索結果の読み込みを待つ
 
 def copy_html_with_extension(extension_button_pos):
     """ブラウザ拡張ボタンを押してHTMLをクリップボードにコピー"""
     # 拡張ボタンをクリック
     pyautogui.click(extension_button_pos)
-    time.sleep(1)  # コピー処理の完了を待つ
+    time.sleep(0.5)  # コピー処理の完了を待つ
 
     # クリップボードからHTMLを取得
     html_content = pyperclip.paste()
