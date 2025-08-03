@@ -1,171 +1,271 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
-Twitter HTML Extractor - Main Entry Point
+Twitter HTML Extractor メインプログラム
+
+このスクリプトは、TwitterのHTMLファイルからツイートを抽出し、CSVファイルに保存します。
+
+使い方:
+  python main.py --html 250803 [--keyword-type TYPE] [--search-keyword KEYWORD] [--no-date] [--verbose]
+  python main.py --merge [--keyword-type TYPE] [--verbose]
+  python main.py --extract DATE [--keyword-type TYPE] [--verbose]
+  python main.py --auto DATE [--keyword-type TYPE] [--verbose]
+
+例:
+  # HTML作成
+  python main.py --html 250803
+  python main.py --html 250803 --keyword-type chikirin
+  python main.py --html --no-date --keyword-type thai
 """
 
-import sys
 import os
+import sys
+import argparse
+from datetime import datetime
 
-# srcフォルダをパスに追加
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+# プロジェクトのルートディレクトリをパスに追加
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from extract_tweets_from_html import main as extract_main
-from merge_all_txt_to_csv import merge_all_txt_to_csv
-from create_twitter_html_auto import main as create_twitter_html_auto_main
+# 設定ファイルのインポート
 import config
+from src.extract_tweets_from_html import main as extract_main
+from src.merge_all_txt_to_csv import merge_all_txt_to_csv
+from src.create_twitter_html_auto import main as create_twitter_html_auto_main
+
+
+def validate_date(date_str):
+    """日付文字列が有効か検証する"""
+    if not date_str:
+        return False
+    
+    # YYMMDD形式を検証
+    if len(date_str) == 6 and date_str.isdigit():
+        try:
+            # 20XX年を仮定して日付をパース
+            year = 2000 + int(date_str[:2])
+            month = int(date_str[2:4])
+            day = int(date_str[4:6])
+            datetime(year=year, month=month, day=day)
+            return True
+        except ValueError:
+            return False
+    # YYYY-MM-DD形式もサポート
+    elif len(date_str) == 10 and date_str[4] == '-' and date_str[7] == '-':
+        try:
+            datetime.strptime(date_str, "%Y-%m-%d")
+            return True
+        except ValueError:
+            return False
+    return False
+
+
+def parse_arguments():
+    """コマンドライン引数を解析する"""
+    parser = argparse.ArgumentParser(
+        description='Twitter HTML Extractor',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""使用例:
+  # HTMLファイルを作成
+  python main.py --html 250701 --keyword-type chikirin
+  
+  # 日付指定なしでHTMLを作成
+  python main.py --html --no-date --search-keyword "検索キーワード"
+  
+  # ツイートを抽出
+  python main.py --extract 250701 -k chikirin
+  
+  # テキストファイルを結合
+  python main.py --merge --keyword-type chikirin
+  
+  # 自動実行（HTML作成 + 抽出）
+  python main.py --auto 250701 -k chikirin
+  
+  # 詳細表示モード
+  python main.py --html 250701 -v
+""")
+    
+    # 相互排他のトップレベルコマンド
+    group = parser.add_mutually_exclusive_group(required=True)
+    
+    # HTML作成コマンド
+    group.add_argument('--html', nargs='?', const=None, metavar='YYMMDD',
+                     help='HTMLファイルを作成する（日付指定はオプション）')
+    
+    # マージコマンド
+    group.add_argument('--merge', action='store_true',
+                     help='すべてのテキストファイルをCSVに結合する')
+    
+    # 抽出コマンド
+    group.add_argument('--extract', metavar='YYMMDD',
+                     help='指定した日付のツイートを抽出する')
+    
+    # 自動実行コマンド
+    group.add_argument('--auto', metavar='YYMMDD',
+                     help='HTML作成とツイート抽出を自動実行する')
+    
+    # 共通オプション
+    parser.add_argument('--keyword-type', '-k', default='default',
+                      choices=config.KEYWORD_PREFIX_MAPPING.keys(),
+                      help=f'キーワードタイプを指定（デフォルト: default）')
+    
+    # HTML作成オプション
+    html_group = parser.add_argument_group('HTML作成オプション')
+    html_group.add_argument('--no-date', action='store_true',
+                          help='日付指定なしでHTMLを作成（--html と併用）')
+    html_group.add_argument('--search-keyword',
+                          help='カスタム検索キーワードを指定（--html と併用）')
+    
+    # 詳細表示オプション
+    parser.add_argument('--verbose', '-v', action='store_true',
+                      help='詳細なログを表示')
+    
+    return parser.parse_args()
+
+
+def validate_keyword_type(keyword_type):
+    """キーワードタイプが有効か検証する"""
+    if keyword_type not in config.KEYWORD_PREFIX_MAPPING:
+        print(f"エラー: 無効なキーワードタイプ '{keyword_type}'")
+        print(f"使用可能なキーワードタイプ: {', '.join(config.KEYWORD_PREFIX_MAPPING.keys())}")
+        return False
+    return True
+
+
+def run_html_command(args):
+    """HTML作成コマンドを実行する"""
+    # 日付の検証（--no-date でない場合）
+    if not args.no_date and args.html is not None and not validate_date(args.html):
+        print("エラー: 無効な日付形式です。YYMMDD 形式で指定してください")
+        print("例: --html 250701")
+        return False
+    
+    # カスタムキーワードが指定されている場合は、キーワードタイプをcustomに設定
+    keyword_type = 'custom' if args.search_keyword else args.keyword_type
+    
+    # キーワードタイプの検証
+    if not validate_keyword_type(keyword_type):
+        return False
+    
+    if args.verbose:
+        date_info = args.html if not args.no_date else '指定なし'
+        print(f"HTML作成を開始します: 日付={date_info}, キーワードタイプ={keyword_type}")
+        if args.search_keyword:
+            print(f"カスタム検索キーワード: {args.search_keyword}")
+    
+    # HTML作成を実行
+    create_twitter_html_auto_main(
+        date_str=args.html if not args.no_date else None,
+        search_keyword=args.search_keyword,
+        use_date=not args.no_date,
+        keyword_type=keyword_type
+    )
+    return True
+
+
+def run_merge_command(args):
+    """マージコマンドを実行する"""
+    if not validate_keyword_type(args.keyword_type):
+        return False
+    
+    if args.verbose:
+        print(f"データを結合します: キーワードタイプ={args.keyword_type}")
+    
+    # マージを実行
+    merge_all_txt_to_csv(args.keyword_type)
+    return True
+
+
+def run_extract_command(args):
+    """抽出コマンドを実行する"""
+    # 日付の検証
+    if not validate_date(args.extract):
+        print("エラー: 無効な日付形式です。YYMMDD 形式で指定してください")
+        print("例: --extract 250701")
+        return False
+    
+    if not validate_keyword_type(args.keyword_type):
+        return False
+    
+    if args.verbose:
+        print(f"ツイートを抽出します: 日付={args.extract}, キーワードタイプ={args.keyword_type}")
+    
+    # 一時的にコマンドライン引数を設定（後方互換性のため）
+    old_argv = sys.argv
+    try:
+        sys.argv = [old_argv[0], args.extract, '--keyword-type', args.keyword_type]
+        if args.verbose:
+            sys.argv.append('--verbose')
+        
+        # 抽出を実行
+        extract_main()
+        return True
+    finally:
+        sys.argv = old_argv
+
+
+def run_auto_command(args):
+    """自動実行コマンドを実行する"""
+    # 日付の検証
+    if not validate_date(args.auto):
+        print("エラー: 無効な日付形式です。YYMMDD 形式で指定してください")
+        print("例: --auto 250701")
+        return False
+    
+    if not validate_keyword_type(args.keyword_type):
+        return False
+    
+    if args.verbose:
+        print(f"自動実行を開始します: 日付={args.auto}, キーワードタイプ={args.keyword_type}")
+    
+    # 自動実行モードでHTML作成を実行
+    create_twitter_html_auto_main(
+        date_str=args.auto,
+        search_keyword=None,
+        use_date=True,
+        keyword_type=args.keyword_type
+    )
+    return True
+
 
 def main():
     """メインエントリーポイント"""
-    if len(sys.argv) < 2:
-        print("使用方法:")
-        print("  ツイート抽出: python main.py extract <日付>")
-        print("  マージ実行:   python main.py merge [--keyword-type <type>]")
-        print("  HTML作成:     python main.py html <日付> [オプション]")
-        print("  Twitter自動化: python main.py auto <日付>")
-        print("")
-        print("HTML作成のオプション:")
-        print("  --no-date: 日付指定なしで検索（untilは指定、日付引数不要）")
-        print("  --keyword-type <type>: 検索キーワードの種類 (default, thai, en, chikirin, custom)")
-        print("  --search-keyword <keyword>: カスタム検索キーワード")
-        print("")
-        print("マージ実行のオプション:")
-        print("  --keyword-type <type>: 特定キーワードタイプのみマージ (default, thai, en, chikirin, custom)")
-        print("")
-        print("例:")
-        print("  python main.py extract 250706")
-        print("  python main.py merge")
-        print("  python main.py merge --keyword-type chikirin")
-        print("  python main.py html 250701")
-        print("  python main.py html --no-date")
-        print("  python main.py html --no-date --keyword-type thai")
-        print("  python main.py html 250701 --search-keyword 'ニュース ビザ'")
-        print("  python main.py html 250701 --keyword-type chikirin")
-        print("  python main.py auto 2025-01-15")
-        sys.exit(1)
-
-    command = sys.argv[1]
-
-    if command == "extract":
-        if len(sys.argv) < 3:
-            print("エラー: 日付を指定してください")
-            print("例: python main.py extract 250706")
-            sys.exit(1)
-
-        # extract_tweets_from_html.pyのmain関数を呼び出し
-        # 引数を調整して渡す
-        sys.argv = [sys.argv[0]] + sys.argv[2:]
-        extract_main()
-
-    elif command == "merge":
-        # オプション引数の解析
-        keyword_type = 'default'
-
-        i = 2
-        while i < len(sys.argv):
-            if (sys.argv[i] == '--keyword-type' or sys.argv[i] == '-k') and i + 1 < len(sys.argv):
-                keyword_type = sys.argv[i + 1]
-                i += 1
-            i += 1
-
-        # キーワードタイプの検証
-        if keyword_type not in config.KEYWORD_PREFIX_MAPPING:
-            print(f"エラー: 無効なキーワードタイプ '{keyword_type}'")
-            print(f"使用可能なキーワードタイプ: {', '.join(config.KEYWORD_PREFIX_MAPPING.keys())}")
-            sys.exit(1)
-
-        merge_all_txt_to_csv(keyword_type)
-
-    elif command == "html":
-        # オプション引数の解析
-        use_date = True
-        keyword_type = 'default'
-        search_keyword = None
-
-        i = 2
-        while i < len(sys.argv):
-            if sys.argv[i] == '--no-date':
-                use_date = False
-            elif (sys.argv[i] == '--keyword-type' or sys.argv[i] == '-k') and i + 1 < len(sys.argv):
-                keyword_type = sys.argv[i + 1]
-                i += 1
-            elif sys.argv[i] == '--search-keyword' and i + 1 < len(sys.argv):
-                search_keyword = sys.argv[i + 1]
-                i += 1
-            i += 1
-
-        # 通常の場合、日付引数は必須
-        if use_date:
-            if len(sys.argv) < 3:
-                print("エラー: 日付を指定してください")
-                print("例: python main.py html 250701")
-                print("日付はYYMMDD形式（例：250701）で指定してください")
-                print("")
-                print("オプション:")
-                print("  --no-date: 日付指定なしで検索（untilは指定、日付引数不要）")
-                print("  --keyword-type <type>: 検索キーワードの種類 (default, thai, en, custom)")
-                print("  --search-keyword <keyword>: カスタム検索キーワード")
-                sys.exit(1)
-            yymmdd = sys.argv[2]
-            if len(yymmdd) == 6 and yymmdd.isdigit():
-                year = 2000 + int(yymmdd[:2])
-                date_str = f"{year:04d}-{yymmdd[2:4]}-{yymmdd[4:6]}"
-            else:
-                print("エラー: 日付はYYMMDD形式で指定してください")
-                print("例: 250701 (2025年7月1日)")
-                sys.exit(1)
+    args = parse_arguments()
+    
+    try:
+        # ログレベル設定
+        if args.verbose:
+            print("詳細モードで実行します")
+        
+        # 各コマンドを実行
+        success = False
+        if args.html is not None:
+            success = run_html_command(args)
+        elif args.merge:
+            success = run_merge_command(args)
+        elif args.extract is not None:
+            success = run_extract_command(args)
+        elif args.auto is not None:
+            success = run_auto_command(args)
         else:
-            # --no-dateの場合、ダミーの日付を設定（実際にはクリップボードから取得される）
-            date_str = "2025-01-01"  # ダミー値
-
-        from src.create_twitter_html_auto import main as twitter_html_main
-        # HTML作成を実行
-        result = twitter_html_main(date_str, search_keyword, use_date, keyword_type)
-
-        # HTML作成が成功した場合、自動的にextract処理を実行
-        if result:
-            print("\n=== 自動extract処理を開始 ===")
-            try:
-                # 生成されたHTMLファイルの日付を取得
-                if use_date:
-                    # 通常の日付指定の場合
-                    extract_date = yymmdd
-                else:
-                    # --no-dateの場合、HTML作成時に生成されたファイル名から日付を取得
-                    # resultはファイルパスなので、ファイル名から日付を抽出
-                    filename = os.path.basename(result)
-                    if filename.endswith('.html'):
-                        extract_date = filename[:-5]  # .htmlを除去
-                    else:
-                        print(f"エラー: 生成されたファイル名が不正です: {result}")
-                        sys.exit(1)
-
-                # extract処理を実行
-                print(f"extract処理を実行: {extract_date}")
-                # extract_main関数を呼び出すために引数を設定
-                original_argv = sys.argv.copy()
-                # keyword_typeを渡すように修正
-                sys.argv = [sys.argv[0], extract_date, '--keyword-type', keyword_type] if keyword_type != 'default' else [sys.argv[0], extract_date]
-                extract_main()
-                sys.argv = original_argv
-                print("自動extract処理が完了しました")
-
-            except Exception as e:
-                print(f"自動extract処理でエラーが発生しました: {e}")
-
-    elif command == "auto":
-        if len(sys.argv) < 3:
-            print("エラー: 日付を指定してください")
-            print("例: python main.py auto 2025-01-15")
+            print("エラー: 無効なコマンドです")
+            print("使用可能なコマンド: --html, --merge, --extract, --auto")
             sys.exit(1)
-        # create_twitter_html_auto.pyのmain関数を呼び出し
-        # 引数を調整して渡す
-        sys.argv = [sys.argv[0]] + sys.argv[2:]
-        create_twitter_html_auto_main()
-
-    else:
-        print(f"エラー: 不明なコマンド '{command}'")
-        print("使用可能なコマンド: extract, merge, html, auto")
+        
+        if not success:
+            sys.exit(1)
+            
+    except KeyboardInterrupt:
+        print("\n処理を中断しました")
         sys.exit(1)
+    except Exception as e:
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        else:
+            print(f"エラー: {str(e)}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
