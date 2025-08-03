@@ -29,43 +29,105 @@ pip install -r requirements.txt
 
 ## 基本的な使い方
 
-### 日付指定（推奨・基本）
+### HTMLファイルの作成
 
 ```bash
-python main.py html 250706
+# 基本形（日付指定）
+python main.py --html 250706
+
+# 日付指定なし
+python main.py --html --no-date
+
+# 詳細表示モード
+python main.py --html 250706 --verbose
 ```
 
 - 指定日（例: 2025/07/06）の 0:00:00〜23:59:59 で検索
+- `--no-date` を指定すると、クリップボードから until 日時を取得
 - 設定ファイルのキーワードで検索（`--keyword-type`や`--search-keyword`で変更可）
-- `data/input/250706.html`が自動生成され、同時に抽出・保存も完了
+- `data/input/250706.html` が自動生成され、同時に抽出・保存も完了
 
-### 日付指定なし（--no-date）
+### ツイートの抽出
 
 ```bash
-python main.py html --no-date
+# 基本形
+python main.py --extract 250706
+
+# キーワードタイプを指定
+python main.py --extract 250706 --keyword-type en
+
+# 詳細表示モード
+python main.py --extract 250706 -v
 ```
 
-- クリップボードに`until:YYYY-MM-DD_HH:MM:SS_JST`形式の until 日時が必要
-- since 指定なし、until はクリップボードから取得
-- `data/input/YYMMDD.html`（until 日時から日付自動生成）が作成され、同時に抽出・保存も完了
+- 指定した日付のHTMLファイルからツイートを抽出
+- 抽出結果は `data/output/txt/` と `data/output/json/` に保存
 
-### キーワード指定
+### テキストファイルのマージ
 
 ```bash
-# キーワードタイプを指定（--keyword-type または短縮形 -k が使用可能）
-python main.py html 250706 --keyword-type en  # 完全形
-python main.py html 250706 -k en             # 短縮形
+# 基本形
+python main.py --merge
+
+# 特定のキーワードタイプのみマージ
+python main.py --merge --keyword-type chikirin
+
+# 詳細表示モード
+python main.py --merge -v
+```
+
+- 抽出済みのテキストファイルを1つのCSVに結合
+- デフォルトでは `data/output/csv/all_tweets.csv` に出力
+- キーワードタイプを指定すると、該当するフォルダ内のファイルのみを処理
+
+### キーワードタイプを指定する方法
+
+キーワードタイプは以下のいずれかの形式で指定できます：
+- `--keyword-type`（完全形）
+- `--k`（短縮形）
+- `-k`（短縮形）
+
+例：
+```bash
+# 以下の3つはすべて同じ意味
+python main.py --html 250803 --keyword-type chikirin
+python main.py --html 250803 --k chikirin
+python main.py --html 250803 -k chikirin
+```
+
+### 自動実行（HTML作成 + 抽出）
+
+```bash
+# 基本形
+python main.py --auto 250706
+
+# キーワードタイプを指定
+python main.py --auto 250706 --keyword-type en
+
+# 詳細表示モード
+python main.py --auto 250706 -v
+```
+
+- HTMLの作成とツイート抽出を一括で実行
+- 個別に `--html` と `--extract` を実行するのと同じ
+
+### キーワード指定オプション
+
+```bash
+# キーワードタイプを指定（--keyword-type または短縮形 -k）
+python main.py --html 250706 --keyword-type en  # 完全形
+python main.py --html 250706 -k en             # 短縮形
 
 # カスタムキーワードで検索
-python main.py html 250706 --search-keyword "ニュース ビザ"
+python main.py --html 250706 --search-keyword "ニュース ビザ"
 
-# キーワードタイプに chikirin を指定（短縮形 -k を使用）
-python main.py html 250706 -k chikirin
+# キーワードタイプに chikirin を指定
+python main.py --html 250706 -k chikirin
 ```
 
-- `--keyword-type` の代わりに短縮形の `-k` が使用できます（例：`-k en`）
-- 設定ファイルで定義されたキーワードタイプか、`--search-keyword` で直接キーワードを指定可能
-- `chikirin` などのキーワードタイプを指定すると、専用フォルダ（`data/input/chikirin/`、`data/output/chikirin/`）にファイルが保存され、データが整理されます
+- `--keyword-type` の代わりに短縮形の `-k` が使用可能
+- 設定ファイルで定義されたキーワードタイプか、`--search-keyword` で直接キーワードを指定
+- `chikirin` などのキーワードタイプを指定すると、専用フォルダにファイルが保存され、データが整理されます
 
 ### キーワードタイプ別フォルダ機能
 
@@ -77,35 +139,43 @@ python main.py html 250706 -k chikirin
 
 この機能により、異なる検索条件のデータを混在させることなく、整理して管理できます。
 
-### マージ機能
+### キーワードタイプ別のデータ管理
 
-```bash
-# デフォルトキーワードタイプのファイルをマージ
-python main.py merge
+キーワードタイプを指定すると、自動的に専用フォルダが作成され、データが分離管理されます：
 
-# 特定キーワードタイプのみマージ
-python main.py merge --keyword-type chikirin  # または -k chikirin
-python main.py merge -k thai  # --keyword-type の代わりに -k が使えます
-python main.py merge -k en
-```
+- **デフォルトキーワード**: 
+  - `data/input/`
+  - `data/output/txt/`
+  - `data/output/json/`
+  - `data/output/csv/all_tweets.csv`
 
-マージ機能では、指定されたキーワードタイプの txt ファイルのみを対象として CSV ファイルを作成します：
+- **chikirin キーワード**: 
+  - `data/input/chikirin/`
+  - `data/output/chikirin/txt/`
+  - `data/output/chikirin/json/`
+  - `data/output/chikirin/csv/chikirin_tweets.csv`
 
-- **デフォルトキーワード**: `data/output/csv/all_tweets.csv`
-- **chikirin キーワード**: `data/output/chikirin/csv/chikirin_tweets.csv`
-- **その他のキーワード**: `data/output/{prefix}/csv/{keyword_type}_tweets.csv`
+- **その他のキーワード**: 
+  - `data/input/{prefix}/`
+  - `data/output/{prefix}/txt/`
+  - `data/output/{prefix}/json/`
+  - `data/output/{prefix}/csv/{keyword_type}_tweets.csv`
 
-これにより、キーワードタイプ別に分離されたデータ分析が可能になります。
+これにより、異なる検索条件のデータを混在させることなく、整理して管理できます。
 
 ---
 
 ## コマンド例・検索クエリ・前提条件
 
-| コマンド例                                           | 変換される検索クエリ                                                              | 前提条件（クリップボード等）                                      |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `python main.py html 250706`                         | `since:2025-07-06_00:00:00_JST until:2025-07-06_23:59:59_JST dtv ビザ`            | なし（コマンド引数のみで OK）                                     |
-| `python main.py html --no-date`                      | `until:2025-07-06_12:34:56_JST dtv ビザ`                                          | クリップボードに`until:YYYY-MM-DD_HH:MM:SS_JST`形式の文字列が必要 |
-| `python main.py html 250706 -k chikirin` | `since:2025-07-06_00:00:00_JST until:2025-07-06_23:59:59_JST #ちきりんセレクトTV` | なし（コマンド引数のみで OK）<br>`-k` は `--keyword-type` の短縮形 |
+| コマンド例                                           | 検索クエリの例                                                                   | 注意点                                                           |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `python main.py --html 250706`                       | `since:2025-07-06_00:00:00_JST until:2025-07-06_23:59:59_JST dtv ビザ`            | なし（コマンド引数のみで OK）                                     |
+| `python main.py --html --no-date`                    | `until:2025-07-06_12:34:56_JST dtv ビザ`                                          | クリップボードに`until:YYYY-MM-DD_HH:MM:SS_JST`形式の文字列が必要 |
+| `python main.py --html 250803 --keyword-type chikirin` | `since:2025-08-03_00:00:00_JST until:2025-08-03_23:59:59_JST ちきりん ビザ`      | `--keyword-type` は `--k` または `-k` でも可 |
+| `python main.py --html 250706 -k chikirin`           | `since:2025-07-06_00:00:00_JST until:2025-07-06_23:59:59_JST #ちきりんセレクトTV` | なし（コマンド引数のみで OK）<br>`-k` は `--keyword-type` の短縮形 |
+| `python main.py --extract 250706`                    | -                                                                                | 指定した日付のHTMLからツイートを抽出                              |
+| `python main.py --merge`                             | -                                                                                | 抽出済みのテキストファイルをCSVに結合                             |
+| `python main.py --auto 250706`                       | `since:2025-07-06_00:00:00_JST until:2025-07-06_23:59:59_JST`（自動設定）         | HTML作成とツイート抽出を一括実行                                  |
 
 ---
 
