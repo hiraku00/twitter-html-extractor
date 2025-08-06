@@ -113,7 +113,7 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
     # クリップボードからuntil日時を取得
     try:
         clipboard_content = pyperclip.paste()
-        if clipboard_content.startswith('until:'):
+        if clipboard_content and isinstance(clipboard_content, str) and clipboard_content.startswith('until:'):
             until_datetime = clipboard_content
             print(f"クリップボードからuntil日時を取得: {until_datetime}")
 
@@ -140,8 +140,22 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
                     sys.exit(1)
             else:
                 # 通常の場合は、指定された日付の23:59:59を使用（クリップボードは無視）
-                until_datetime = f"until:{date_str}_23:59:59_JST"
+                # 日付形式をYYYY-MM-DDに変換（6桁形式の場合）
+                if len(date_str) == 6 and date_str.isdigit():
+                    year = 2000 + int(date_str[:2])
+                    month = date_str[2:4]
+                    day = date_str[4:6]
+                    date_ymd = f"{year}-{month}-{day}"
+                else:
+                    # 既にYYYY-MM-DD形式の場合はそのまま使用
+                    date_ymd = date_str
+                
+                # until日付もYYYY-MM-DD形式で統一
+                # date_ymd は既に YYYY-MM-DD 形式
+                until_datetime = f"until:{date_ymd}_23:59:59_JST"
                 print(f"指定された日付のuntil日時を使用: {until_datetime}")
+                # 後続の処理で使用するためにdate_strを更新
+                date_str = date_ymd
         else:
             # --no-dateの場合、クリップボードにuntil日時がない場合はエラー
             if not use_date:
@@ -150,29 +164,79 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
                 sys.exit(1)
             else:
                 # 通常の場合は、指定された日付の23:59:59を使用
-                until_datetime = f"until:{date_str}_23:59:59_JST"
+                # date_str が YYMMDD 形式の場合は YYYY-MM-DD に変換
+                if len(date_str) == 6 and date_str.isdigit():
+                    year = 2000 + int(date_str[:2])
+                    month = date_str[2:4]
+                    day = date_str[4:6]
+                    date_ymd = f"{year}-{month}-{day}"
+                else:
+                    date_ymd = date_str  # 既にYYYY-MM-DD形式の場合
+                    
+                until_datetime = f"until:{date_ymd}_23:59:59_JST"
                 print(f"指定された日付のuntil日時を使用: {until_datetime}")
+                date_str = date_ymd  # 後続の処理で使用するために更新
     except Exception as e:
         print(f"クリップボードの読み取りに失敗: {e}")
         if not use_date:
             print("エラー: --no-dateオプション使用時は、クリップボードにuntil日時が必要です")
             sys.exit(1)
         else:
-            until_datetime = f"until:{date_str}_23:59:59_JST"
+            # date_str が YYMMDD 形式の場合は YYYY-MM-DD に変換
+            if len(date_str) == 6 and date_str.isdigit():
+                year = 2000 + int(date_str[:2])
+                month = date_str[2:4]
+                day = date_str[4:6]
+                date_ymd = f"{year}-{month}-{day}"
+            else:
+                date_ymd = date_str  # 既にYYYY-MM-DD形式の場合
+                
+            until_datetime = f"until:{date_ymd}_23:59:59_JST"
             print(f"指定された日付のuntil日時を使用: {until_datetime}")
+            date_str = date_ymd  # 後続の処理で使用するために更新
 
     # 日付指定ありの場合のみ、日付の形式を確認
     if use_date:
         try:
-            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-            date_str = date_obj.strftime('%Y-%m-%d')
+            # 6桁日付（YYMMDD）形式の場合
+            if len(date_str) == 6 and date_str.isdigit():
+                year = 2000 + int(date_str[:2])
+                month = int(date_str[2:4])
+                day = int(date_str[4:6])
+                date_obj = datetime(year=year, month=month, day=day)
+                date_str = date_obj.strftime('%Y-%m-%d')
+            else:
+                # YYYY-MM-DD形式の場合
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                date_str = date_obj.strftime('%Y-%m-%d')
         except ValueError:
-            print("エラー: 日付は YYYY-MM-DD 形式で入力してください")
+            print("エラー: 無効な日付形式です。YYMMDD または YYYY-MM-DD 形式で指定してください")
+            print("例: 250701 または 2025-07-01")
             sys.exit(1)
 
     # 検索クエリを構築
     if use_date:
-        search_query = f"since:{date_str}_00:00:00_JST {until_datetime} {search_keyword}"
+        # 日付をYYYY-MM-DD形式に統一
+        if len(date_str) == 6 and date_str.isdigit():  # YYMMDD形式の場合
+            year = 2000 + int(date_str[:2])
+            month = date_str[2:4]
+            day = date_str[4:6]
+            since_date = f"{year}-{month}-{day}"
+        else:
+            since_date = date_str  # 既にYYYY-MM-DD形式の場合
+            
+        # sinceとuntilの形式を統一 (YYYY-MM-DD_HH:MM:SS_JST)
+        since_str = f"since:{since_date}_00:00:00_JST"
+        
+        # untilの形式をチェックして必要に応じて変換
+        if until_datetime.startswith('until:') and '_' in until_datetime:
+            # 既にuntil:が付いている場合はそのまま使用
+            pass
+        else:
+            # until: が付いていない場合は追加
+            until_datetime = f"until:{until_datetime}"
+            
+        search_query = f"{since_str} {until_datetime} {search_keyword}"
     else:
         search_query = f"{until_datetime} {search_keyword}"
     print(f"検索クエリ: {search_query}")
