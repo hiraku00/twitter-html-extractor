@@ -32,7 +32,7 @@ class TestIntegration(unittest.TestCase):
         os.chdir(self.original_cwd)
         shutil.rmtree(self.temp_dir)
 
-    @patch('src.create_twitter_html_auto.main')
+    @patch('src.create_twitter_html_all.main')
     def test_main_html_with_no_since(self, mock_create_html):
         """main.pyのhtmlコマンドで--no-sinceオプションをテスト"""
         # テスト用のsys.argvを設定
@@ -70,7 +70,7 @@ class TestIntegration(unittest.TestCase):
             self.assertEqual(keyword_type, 'default')
             self.assertIsNone(search_keyword)
 
-    @patch('src.create_twitter_html_auto.main')
+    @patch('src.create_twitter_html_all.main')
     def test_main_html_with_keyword_type(self, mock_create_html):
         """main.pyのhtmlコマンドで--keyword-typeオプションをテスト"""
         # テスト用のsys.argvを設定
@@ -108,7 +108,7 @@ class TestIntegration(unittest.TestCase):
             self.assertEqual(keyword_type, 'thai')
             self.assertIsNone(search_keyword)
 
-    @patch('src.create_twitter_html_auto.main')
+    @patch('src.create_twitter_html_all.main')
     def test_main_html_with_chikirin_keyword_type(self, mock_create_html):
         """main.pyのhtmlコマンドで--keyword-type chikirinオプションをテスト"""
         # テスト用のsys.argvを設定
@@ -140,7 +140,7 @@ class TestIntegration(unittest.TestCase):
                     i += 1
                 i += 1
                 
-    @patch('src.create_twitter_html_auto.main')
+    @patch('src.create_twitter_html_all.main')
     def test_main_html_with_short_k_option(self, mock_create_html):
         """main.pyのhtmlコマンドで-k 短縮オプションをテスト"""
         # テスト用のsys.argvを設定
