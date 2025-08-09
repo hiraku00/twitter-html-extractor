@@ -10,7 +10,7 @@ Twitter HTML Extractor メインプログラム
   python main.py --html 250803 [--keyword-type TYPE] [--search-keyword KEYWORD] [--no-date] [--verbose]
   python main.py --merge [--keyword-type TYPE] [--verbose]
   python main.py --extract DATE [--keyword-type TYPE] [--verbose]
-  python main.py --auto DATE [--keyword-type TYPE] [--verbose]
+  python main.py --all DATE [--keyword-type TYPE] [--verbose]
 
 例:
   # HTML作成
@@ -31,7 +31,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import config
 from src.extract_tweets_from_html import main as extract_main
 from src.merge_all_txt_to_csv import merge_all_txt_to_csv
-from src.create_twitter_html_auto import main as create_twitter_html_auto_main
+from src.create_twitter_html_all import main as create_twitter_html_all_main
 
 
 def validate_date(date_str):
@@ -78,8 +78,8 @@ def parse_arguments():
   # テキストファイルを結合
   python main.py --merge --keyword-type chikirin
 
-  # 自動実行（HTML作成 + 抽出）
-  python main.py --auto 250701 -k chikirin
+  # 全実行（HTML作成 + 抽出）
+  python main.py --all 250701 -k chikirin
 
   # 詳細表示モード
   python main.py --html 250701 -v
@@ -100,9 +100,9 @@ def parse_arguments():
     group.add_argument('--extract', metavar='YYMMDD',
                      help='指定した日付のツイートを抽出する')
 
-    # 自動実行コマンド
-    group.add_argument('--auto', metavar='YYMMDD',
-                     help='HTML作成とツイート抽出を自動実行する')
+    # 全実行コマンド
+    group.add_argument('--all', metavar='YYMMDD',
+                     help='HTML作成とツイート抽出を実行する')
 
     # 共通オプション
     parser.add_argument('--keyword-type', '-k', default='default',
@@ -204,23 +204,23 @@ def run_extract_command(args):
         sys.argv = old_argv
 
 
-def run_auto_command(args):
-    """自動実行コマンドを実行する"""
+def run_all_command(args):
+    """全実行コマンドを実行する"""
     # 日付の検証
-    if not validate_date(args.auto):
+    if not validate_date(args.all):
         print("エラー: 無効な日付形式です。YYMMDD 形式で指定してください")
-        print("例: --auto 250701")
+        print("例: --all 250701")
         return False
 
     if not validate_keyword_type(args.keyword_type):
         return False
 
     if args.verbose:
-        print(f"自動実行を開始します: 日付={args.auto}, キーワードタイプ={args.keyword_type}")
+        print(f"全実行を開始します: 日付={args.all}, キーワードタイプ={args.keyword_type}")
 
-    # 自動実行モードでHTML作成を実行
-    create_twitter_html_auto_main(
-        date_str=args.auto,
+    # 全実行モードでHTML作成を実行
+    create_twitter_html_all_main(
+        date_str=args.all,
         search_keyword=None,
         use_date=True,
         keyword_type=args.keyword_type
@@ -232,7 +232,7 @@ def run_auto_command(args):
     # 抽出コマンドを実行するための引数オブジェクトを作成
     class Args:
         def __init__(self):
-            self.extract = args.auto
+            self.extract = args.all
             self.keyword_type = args.keyword_type
             self.verbose = args.verbose
     
@@ -257,11 +257,11 @@ def main():
             success = run_merge_command(args)
         elif args.extract is not None:
             success = run_extract_command(args)
-        elif args.auto is not None:
-            success = run_auto_command(args)
+        elif args.all is not None:
+            success = run_all_command(args)
         else:
             print("エラー: 無効なコマンドです")
-            print("使用可能なコマンド: --html, --merge, --extract, --auto")
+            print("使用可能なコマンド: --html, --merge, --extract, --all")
             sys.exit(1)
 
         if not success:
