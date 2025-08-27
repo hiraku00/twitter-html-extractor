@@ -88,16 +88,43 @@ def save_html_to_file(html_content, date_str, keyword_type='default'):
     return filepath
 
 def main(date_str=None, search_keyword=None, use_date=True, keyword_type='default'):
-    if date_str is None:
+    # コマンドライン引数として実行された場合の処理
+    import sys
+    if len(sys.argv) > 1 and not any(arg.startswith('--search-keyword') or 
+                                   arg.startswith('--keyword-type') or 
+                                   arg.startswith('--no-date') or 
+                                   arg.startswith('-k') for arg in sys.argv[1:]):
+        # 引数として日付が指定されている場合
+        parser = argparse.ArgumentParser(description='TwitterのHTMLファイルを自動生成')
+        parser.add_argument('date', nargs='?', default=None, help='検索対象の日付 (YYMMDD形式)')
+        parser.add_argument('--search-keyword', default=None,
+                          help='検索キーワード (デフォルト: 設定ファイルから取得)')
+        parser.add_argument('--keyword-type', '-k', choices=['default', 'thai', 'en', 'chikirin', 'custom'],
+                          default='default', help='検索キーワードの種類')
+        parser.add_argument('--no-date', action='store_true',
+                          help='日付指定なしで検索する')
+        args = parser.parse_args()
+        
+        # 引数から値を設定
+        date_str = args.date
+        search_keyword = args.search_keyword or search_keyword
+        keyword_type = args.keyword_type
+        use_date = not args.no_date
+    
+    # モジュールとして呼び出された場合の処理
+    if date_str is None and use_date:
+        # 日付が指定されておらず、かつ日付を使用する場合
         parser = argparse.ArgumentParser(description='TwitterのHTMLファイルを自動生成')
         parser.add_argument('date', help='検索対象の日付 (YYMMDD形式)')
-        parser.add_argument('--search-keyword', default=None,
-                           help='検索キーワード (デフォルト: 設定ファイルから取得)')
+        parser.add_argument('--search-keyword', default=search_keyword,
+                          help='検索キーワード (デフォルト: 設定ファイルから取得)')
         parser.add_argument('--keyword-type', '-k', choices=['default', 'thai', 'en', 'chikirin', 'custom'],
-                           default='default', help='検索キーワードの種類')
+                          default=keyword_type, help='検索キーワードの種類')
         parser.add_argument('--no-date', action='store_true',
-                           help='日付指定なしで検索する')
+                          help='日付指定なしで検索する')
         args = parser.parse_args()
+        
+        # 引数から値を設定
         date_str = args.date
         search_keyword = args.search_keyword
         keyword_type = args.keyword_type
