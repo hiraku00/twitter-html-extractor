@@ -19,6 +19,25 @@ cd twitter-html-extractor
 pip install -r requirements.txt
 ```
 
+## テストの実行
+
+```bash
+# すべてのテストを実行
+python -m pytest tests/
+
+# 詳細な出力付きでテストを実行
+python -m pytest -v tests/
+
+# 特定のテストファイルを実行
+python -m pytest tests/test_args.py
+
+# 特定のテスト関数を実行
+python -m pytest tests/test_args.py::TestArgumentParser::test_all_with_no_date
+
+# カバレッジレポートを生成
+pytest --cov=src tests/
+```
+
 ## セットアップ・事前準備
 
 - Python 3.7 以上
@@ -35,19 +54,41 @@ pip install -r requirements.txt
 # 基本形（日付指定）
 python main.py --html 250706
 
-# 日付指定なし
+# 日付指定なし（クリップボードから日時を取得）
 python main.py --html --no-date
+
+# カスタム検索キーワードを指定
+python main.py --html 250706 --search-keyword "from:example"
+
+# キーワードタイプを指定
+python main.py --html 250706 -k chikirin
 
 # 詳細表示モード
 python main.py --html 250706 --verbose
 ```
 
 - 指定日（例: 2025/07/06）の 0:00:00〜23:59:59 で検索
-- `--no-date` を指定すると、クリップボードから until 日時を取得
-- 設定ファイルのキーワードで検索（`--keyword-type`や`--search-keyword`で変更可）
-- `data/input/250706.html` が自動生成され、同時に抽出・保存も完了
+- `--no-date` を指定すると、クリップボードから `until:YYYY-MM-DD_HH:MM:SS_JST` 形式の日時を取得
+- `--search-keyword` でカスタム検索キーワードを指定可能
+- `-k, --keyword-type` で事前に設定したキーワードタイプを指定可能
+- 結果は `data/input/250706.html` に保存され、自動的に抽出処理も実行
 
-### ツイートの抽出
+### ツイートの抽出（既存HTMLから）
+
+```bash
+# 基本形
+python main.py --extract 250706
+
+# カスタム検索キーワードを指定
+python main.py --extract 250706 --search-keyword "from:example"
+
+# キーワードタイプを指定
+python main.py --extract 250706 -k chikirin
+```
+
+- 既存のHTMLファイルからツイートを抽出
+- 日付形式は `YYMMDD`
+- 結果は `data/output/` に保存
 
 ```bash
 # 基本形
@@ -95,19 +136,28 @@ python main.py --html 250803 --k chikirin
 python main.py --html 250803 -k chikirin
 ```
 
-### 自動実行（HTML作成 + 抽出）
+### 一括実行（HTML作成 + 抽出）
 
 ```bash
 # 基本形
-python main.py --auto 250706
+python main.py --all 250706
+
+# 日付指定なし（クリップボードから日時を取得）
+python main.py --all --no-date
+
+# カスタム検索キーワードを指定
+python main.py --all 250706 --search-keyword "from:example"
 
 # キーワードタイプを指定
-python main.py --auto 250706 --keyword-type en
+python main.py --all 250706 -k chikirin
 
-# 詳細表示モード
-python main.py --auto 250706 -v
+# 最新のHTMLファイルを使用（日付自動検出）
+python main.py --all latest
 ```
 
+- `--all` コマンドはHTML作成と抽出を一括で実行
+- `--no-date` と併用すると、クリップボードから `until:YYYY-MM-DD_HH:MM:SS_JST` 形式の日時を取得
+- `latest` を指定すると、最新のHTMLファイルを自動検出して使用
 - HTMLの作成とツイート抽出を一括で実行
 - 個別に `--html` と `--extract` を実行するのと同じ
 
