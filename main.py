@@ -60,67 +60,87 @@ def validate_date(date_str):
     return False
 
 
-def parse_arguments():
-    """コマンドライン引数を解析する"""
+def parse_arguments(args=None):
+    """コマンドライン引数を解析する
+    
+    Args:
+        args: コマンドライン引数のリスト（デフォルト: Noneの場合はsys.argv[1:]が使用される）
+    """
+    import config
+    
+    # メインパーサーを作成
     parser = argparse.ArgumentParser(
         description='Twitter HTML Extractor',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""使用例:
-  # HTMLファイルを作成
-  python main.py --html 250701 --keyword-type chikirin
-
-  # 日付指定なしでHTMLを作成
-  python main.py --html --no-date --search-keyword "検索キーワード"
-
-  # ツイートを抽出
-  python main.py --extract 250701 -k chikirin
-
-  # テキストファイルを結合
-  python main.py --merge --keyword-type chikirin
-
-  # 全実行（HTML作成 + 抽出）
-  python main.py --all 250701 -k chikirin
-
-  # 詳細表示モード
-  python main.py --html 250701 -v
-""")
-
-    # 相互排他的なトップレベルコマンド
-    group = parser.add_mutually_exclusive_group(required=True)
-
-    # HTML作成コマンド
-    group.add_argument('--html', nargs='?', const=None, metavar='YYMMDD',
-                     help='HTMLファイルを作成する（日付指定はオプション）')
-
+        add_help=False
+    )
+    
+    # メインコマンドグループ（相互排他）
+    subparsers = parser.add_subparsers(dest='command', help='サブコマンド')
+    
+    # HTMLコマンド
+    html_parser = subparsers.add_parser('html', help='HTMLファイルを作成')
+    html_parser.add_argument('date', nargs='?', metavar='YYMMDD',
+                          help='日付（オプション）')
+    
     # マージコマンド
-    group.add_argument('--merge', action='store_true',
-                     help='すべてのテキストファイルをCSVに結合する')
-
+    merge_parser = subparsers.add_parser('merge', help='すべてのテキストファイルをCSVに結合')
+    
     # 抽出コマンド
-    group.add_argument('--extract', metavar='YYMMDD',
-                     help='指定した日付のツイートを抽出する')
-
+    extract_parser = subparsers.add_parser('extract', help='指定した日付のツイートを抽出')
+    extract_parser.add_argument('date', metavar='YYMMDD', help='抽出する日付')
+    
     # 全実行コマンド
-    group.add_argument('--all', nargs='?', const='latest', metavar='YYMMDD',
-                     help='HTML作成とツイート抽出を実行する（--no-date と併用可能）')
-
+    all_parser = subparsers.add_parser('all', help='HTML作成とツイート抽出を実行')
+    all_parser.add_argument('date', nargs='?', metavar='YYMMDD',
+                          help='日付（オプション）')
+    
     # 共通オプション
-    parser.add_argument('--keyword-type', '-k', default='default',
-                      choices=config.KEYWORD_PREFIX_MAPPING.keys(),
-                      help=f'キーワードタイプを指定（デフォルト: default）')
+    for p in [html_parser, merge_parser, extract_parser, all_parser]:
+        p.add_argument('--keyword-type', '-k',
+                     default='default',
+                     choices=config.KEYWORD_PREFIX_MAPPING.keys(),
+                     help='キーワードタイプを指定（デフォルト: %(default)s）')
+        p.add_argument('--no-date', action='store_true',
+                     help='日付指定なしで実行')
+        p.add_argument('--search-keyword',
+                     help='カスタム検索キーワードを指定')
+        p.add_argument('--verbose', '-v', action='store_true',
+                     help='詳細な出力を有効化')
+    
+    # ヘルプオプションを追加
+    parser.add_argument('--help', '-h', action='help',
+                      help='このヘルプメッセージを表示して終了')
+    
+    # カスタムヘルプメッセージ
+    parser.epilog = """
+使用例:
+  # HTML作成
+  python main.py html 250701 --keyword-type chikirin
 
-    # HTML作成オプション
-    html_group = parser.add_argument_group('HTML作成オプション')
-    html_group.add_argument('--no-date', action='store_true',
-                          help='日付指定なしでHTMLを作成（--html または --all と併用）')
-    html_group.add_argument('--search-keyword',
-                          help='カスタム検索キーワードを指定（--html または --all と併用）')
+  # 日付指定なしでHTML作成
+  python main.py html --no-date --search-keyword "検索キーワード"
 
-    # 詳細表示オプション
-    parser.add_argument('--verbose', '-v', action='store_true',
-                      help='詳細なログを表示')
+  # ツイート抽出
+  python main.py extract 250701 -k chikirin
 
-    return parser.parse_args()
+  # ファイル結合
+  python main.py merge --keyword-type chikirin
+
+  # 一括実行（作成 + 抽出）
+  python main.py all 250827 -k chikirin
+"""
+    
+    # 引数をパース
+    if args is None:
+        args = sys.argv[1:]
+    
+    # サブコマンドが指定されていない場合はヘルプを表示
+    if not args or args[0].startswith('-'):
+        parser.print_help()
+        sys.exit(1)
+        
+    return parser.parse_args(args)
 
 
 def validate_keyword_type(keyword_type):
@@ -134,30 +154,43 @@ def validate_keyword_type(keyword_type):
 
 def run_html_command(args):
     """HTML作成コマンドを実行する"""
+    # --no-date が指定されているか確認
+    no_date = hasattr(args, 'no_date') and args.no_date
+    
     # 日付の検証（--no-date でない場合）
-    if not args.no_date and args.html is not None and not validate_date(args.html):
-        print("エラー: 無効な日付形式です。YYMMDD 形式で指定してください")
-        print("例: --html 250701")
-        return False
+    if not no_date:
+        if not hasattr(args, 'date') or not args.date or not validate_date(args.date):
+            print("エラー: 無効な日付形式です。YYMMDD 形式で指定するか、--no-date を指定してください")
+            print("例1: html 250701")
+            print("例2: html --no-date")
+            return False
+        date_str = args.date
+    else:
+        date_str = 'latest'  # --no-date の場合は 'latest' を使用
+        if hasattr(args, 'verbose') and args.verbose:
+            print("日付指定なしで実行します（クリップボードの日付を使用）")
 
     # カスタムキーワードが指定されている場合は、キーワードタイプをcustomに設定
-    keyword_type = 'custom' if args.search_keyword else args.keyword_type
+    keyword_type = 'custom' if hasattr(args, 'search_keyword') and args.search_keyword else args.keyword_type
 
     # キーワードタイプの検証
     if not validate_keyword_type(keyword_type):
         return False
 
-    if args.verbose:
-        date_info = args.html if not args.no_date else '指定なし'
+    if hasattr(args, 'verbose') and args.verbose:
+        date_info = 'クリップボードの日付' if no_date else date_str
         print(f"HTML作成を開始します: 日付={date_info}, キーワードタイプ={keyword_type}")
-        if args.search_keyword:
+        if hasattr(args, 'search_keyword') and args.search_keyword:
             print(f"カスタム検索キーワード: {args.search_keyword}")
 
     # HTML作成を実行
+    # --no-date の場合は、date_strをNoneに設定して、create_twitter_html_all_main内で
+    # クリップボードから日付を取得するようにする
+    html_date_str = None if no_date else date_str
     create_twitter_html_all_main(
-        date_str=args.html if not args.no_date else None,
-        search_keyword=args.search_keyword,
-        use_date=not args.no_date,
+        date_str=html_date_str,
+        search_keyword=args.search_keyword if hasattr(args, 'search_keyword') else None,
+        use_date=not no_date,
         keyword_type=keyword_type
     )
     return True
@@ -168,11 +201,12 @@ def run_merge_command(args):
     if not validate_keyword_type(args.keyword_type):
         return False
 
-    if args.verbose:
+    if hasattr(args, 'verbose') and args.verbose:
         print(f"データを結合します: キーワードタイプ={args.keyword_type}")
 
     # マージを実行
     merge_all_txt_to_csv(args.keyword_type)
+    return True
     return True
 
 
@@ -183,17 +217,22 @@ def run_extract_command(args):
     
     # --no-date でない場合は日付を検証
     if not no_date:
-        if not hasattr(args, 'extract') or not validate_date(args.extract):
+        if not hasattr(args, 'date') or not args.date or not validate_date(args.date):
             print("エラー: 無効な日付形式です。YYMMDD 形式で指定するか、--no-date を指定してください")
-            print("例1: --extract 250701")
-            print("例2: --extract --no-date")
+            print("例1: extract 250701")
+            print("例2: extract --no-date")
             return False
+        date_str = args.date
+    else:
+        date_str = 'latest'  # --no-date の場合は 'latest' を使用
+        if hasattr(args, 'verbose') and args.verbose:
+            print("最新のHTMLファイルから抽出します")
 
     if not validate_keyword_type(args.keyword_type):
         return False
 
-    if args.verbose:
-        date_info = '最新のHTMLファイル' if no_date else args.extract
+    if hasattr(args, 'verbose') and args.verbose:
+        date_info = '最新のHTMLファイル' if no_date else date_str
         print(f"ツイートを抽出します: 日付={date_info}, キーワードタイプ={args.keyword_type}")
 
     # 一時的にコマンドライン引数を設定（後方互換性のため）
@@ -217,9 +256,9 @@ def run_extract_command(args):
             date_str = match.group(1)
             sys.argv = [old_argv[0], date_str, '--keyword-type', args.keyword_type]
         else:
-            sys.argv = [old_argv[0], args.extract, '--keyword-type', args.keyword_type]
+            sys.argv = [old_argv[0], date_str, '--keyword-type', args.keyword_type]
             
-        if args.verbose:
+        if hasattr(args, 'verbose') and args.verbose:
             sys.argv.append('--verbose')
 
         # 抽出を実行
@@ -236,105 +275,125 @@ def run_all_command(args):
     
     # 日付の検証（--no-date でない場合）
     if not no_date:
-        if not args.all or not validate_date(args.all):
+        if not hasattr(args, 'date') or not args.date or not validate_date(args.date):
             print("エラー: 無効な日付形式です。YYMMDD 形式で指定するか、--no-date を指定してください")
-            print("例1: --all 250701")
-            print("例2: --all --no-date")
+            print("例1: all 250701")
+            print("例2: all --no-date")
             return False
-        date_str = args.all
+        date_str = args.date
     else:
         date_str = 'latest'  # --no-date の場合は 'latest' を使用
-        if args.verbose:
+        if hasattr(args, 'verbose') and args.verbose:
             print("日付指定なしで実行します（クリップボードの日付を使用）")
 
     if not validate_keyword_type(args.keyword_type):
         return False
 
-    if args.verbose:
-        date_info = 'クリップボードの日付' if no_date else args.all
+    if hasattr(args, 'verbose') and args.verbose:
+        date_info = 'クリップボードの日付' if no_date else date_str
         print(f"全実行を開始します: 日付={date_info}, キーワードタイプ={args.keyword_type}")
-        if no_date and args.search_keyword:
+        if hasattr(args, 'search_keyword') and args.search_keyword:
             print(f"検索キーワード: {args.search_keyword}")
 
-    # 全実行モードでHTML作成を実行
-    # --no-date の場合は、date_strをNoneに設定して、create_twitter_html_all_main内で
-    # クリップボードから日付を取得するようにする
-    html_date_str = None if no_date else date_str
-    create_twitter_html_all_main(
-        date_str=html_date_str,
-        search_keyword=args.search_keyword,
-        use_date=not no_date,
-        keyword_type=args.keyword_type
-    )
+    # 一時的にコマンドライン引数を設定（後方互換性のため）
+    old_argv = sys.argv
+    try:
+        # HTML作成を実行
+        html_argv = [old_argv[0]]
+        if no_date:
+            html_argv.extend(['--no-date'])
+        else:
+            html_argv.append(date_str)
+            
+        html_argv.extend(['--keyword-type', args.keyword_type])
+            
+        if hasattr(args, 'search_keyword') and args.search_keyword:
+            html_argv.extend(['--search-keyword', args.search_keyword])
+            
+        if hasattr(args, 'verbose') and args.verbose:
+            html_argv.append('--verbose')
+            
+        # HTML作成を実行
+        from src.create_twitter_html_all import main as create_twitter_html_all_main
+        sys.argv = html_argv
+        if hasattr(args, 'verbose') and args.verbose:
+            print(f"HTML作成を実行: {' '.join(sys.argv)}")
+        create_twitter_html_all_main()
 
-    if args.verbose:
-        print("HTML作成が完了しました。ツイートの抽出を開始します...")
-
-    # 抽出コマンドを実行するための引数オブジェクトを作成
-    class Args:
-        def __init__(self):
-            # --no-date が指定されている場合は、保存されたHTMLファイルから日付を取得
-            if no_date:
-                # 最新のHTMLファイルを探す
-                import glob
-                import os
-                list_of_files = glob.glob('data/input/*.html')
-                if list_of_files:
-                    latest_file = max(list_of_files, key=os.path.getctime)
-                    # ファイル名から日付部分を抽出（例: 250826.html から 250826 を抽出）
-                    import re
-                    match = re.search(r'(\d{6})\.html$', latest_file)
-                    if match:
-                        self.extract = match.group(1)
-                        if args.verbose:
-                            print(f"最新のHTMLファイルから日付を取得: {self.extract}")
-                    else:
-                        print("エラー: 日付形式のファイルが見つかりませんでした")
-                        sys.exit(1)
-                else:
-                    print("エラー: HTMLファイルが見つかりませんでした")
-                    sys.exit(1)
-            else:
-                self.extract = date_str
-            self.keyword_type = args.keyword_type
-            self.verbose = args.verbose
-
-    # 抽出を実行
-    return run_extract_command(Args())
+        if hasattr(args, 'verbose') and args.verbose:
+            print("\nHTML作成が完了しました。ツイートの抽出を開始します...")
+            
+        # 抽出コマンドを実行
+        if no_date:
+            # --no-date の場合は、最新のHTMLファイルを検索
+            import glob
+            import os
+            list_of_files = glob.glob('data/input/*.html')
+            if not list_of_files:
+                print("エラー: 抽出するHTMLファイルが見つかりません")
+                return False
+            latest_file = max(list_of_files, key=os.path.getctime)
+            # ファイル名から日付部分を抽出（例: 250826.html から 250826 を抽出）
+            import re
+            match = re.search(r'(\d{6})\.html$', latest_file)
+            if not match:
+                print("エラー: 日付形式のファイルが見つかりませんでした")
+                return False
+            date_str = match.group(1)
+            
+        # 抽出用の引数を設定
+        extract_argv = [old_argv[0], date_str, '--keyword-type', args.keyword_type]
+        if hasattr(args, 'verbose') and args.verbose:
+            extract_argv.append('--verbose')
+            
+        # 抽出を実行
+        from src.extract_tweets_from_html import main as extract_main
+        sys.argv = extract_argv
+        if hasattr(args, 'verbose') and args.verbose:
+            print(f"抽出を実行: {' '.join(sys.argv)}")
+        extract_main()
+        
+        return True
+    finally:
+        sys.argv = old_argv
 
 
 def main():
     """メインエントリーポイント"""
-    args = parse_arguments()
-
     try:
-        # ログレベル設定
-        if args.verbose:
+        # コマンドライン引数を解析
+        args = parse_arguments()
+
+        # ログレベルの設定
+        if hasattr(args, 'verbose') and args.verbose:
             print("詳細モードで実行します")
 
-        # 各コマンドを実行
-        success = False
-        if args.html is not None:
-            success = run_html_command(args)
-        elif args.merge:
-            success = run_merge_command(args)
-        elif args.extract is not None:
-            success = run_extract_command(args)
-        if hasattr(args, 'all'):
-            success = run_all_command(args)
+        # コマンドを実行
+        if args.command == 'all':
+            # all コマンドを実行
+            if not run_all_command(args):
+                sys.exit(1)
+        elif args.command == 'html':
+            # html コマンドを実行
+            if not run_html_command(args):
+                sys.exit(1)
+        elif args.command == 'merge':
+            # merge コマンドを実行
+            if not run_merge_command(args):
+                sys.exit(1)
+        elif args.command == 'extract':
+            # extract コマンドを実行
+            if not run_extract_command(args):
+                sys.exit(1)
         else:
-            print("エラー: 無効なコマンドです")
-            print("使用可能なコマンド: --html, --merge, --extract, --all")
-            sys.exit(1)
-
-        if not success:
+            print("エラー: 不明なコマンドです")
             sys.exit(1)
 
     except KeyboardInterrupt:
         print("\n処理を中断しました")
         sys.exit(1)
     except Exception as e:
-        if args.verbose:
+        if 'args' in locals() and hasattr(args, 'verbose') and args.verbose:
             import traceback
             traceback.print_exc()
         else:

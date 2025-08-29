@@ -192,6 +192,7 @@ def main():
     parser = argparse.ArgumentParser(description='HTMLファイルからツイートを抽出します')
     parser.add_argument('date', help='日付（例: 250706, 250624）')
     parser.add_argument('--keyword-type', '-k', help='キーワードタイプ (default, thai, en, chikirin, custom)', default='default')
+    parser.add_argument('--verbose', '-v', action='store_true', help='詳細な出力を有効化')
 
     args = parser.parse_args()
 

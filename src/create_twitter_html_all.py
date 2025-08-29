@@ -122,6 +122,8 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
                           default=keyword_type, help='検索キーワードの種類')
         parser.add_argument('--no-date', action='store_true',
                           help='日付指定なしで検索する')
+        parser.add_argument('--verbose', '-v', action='store_true',
+                          help='詳細な出力を有効化')
         args = parser.parse_args()
         
         # 引数から値を設定
