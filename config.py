@@ -13,16 +13,18 @@ SEARCH_KEYWORDS = {
     'thai': 'dtv タイ',
     'en': 'dtv visa',
     'chikirin': '#ちきりんセレクトTV',
+    'manekineko': 'from:thailandelitevi',
     'custom': None  # カスタムキーワード用
 }
 
 # キーワードタイプとprefixのマッピング
 KEYWORD_PREFIX_MAPPING = {
-    'default': None,
-    'thai': None,
-    'en': None,
-    'chikirin': 'chikirin',
-    'custom': None
+    'default': None,            # data/input/ 直下に保存
+    'thai': 'thai',             # data/input/thai/ に保存
+    'en': 'en',                 # data/input/en/ に保存
+    'chikirin': 'chikirin',     # data/input/chikirin/ に保存
+    'manekineko': 'manekineko', # data/input/manekineko/ に保存
+    'custom': 'custom'          # data/input/custom/ に保存
 }
 
 # ファイルパス設定
