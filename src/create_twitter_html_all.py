@@ -17,8 +17,11 @@ import argparse
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import config
 
-def get_position(prompt):
+def get_position(prompt, test_mode=False):
     """指定された位置をユーザーにクリックさせて取得する"""
+    if test_mode:
+        from types import SimpleNamespace
+        return SimpleNamespace(x=100, y=200)  # テスト用の固定座標
     print(prompt)
     input("準備ができたらEnterキーを押してください...")
     position = pyautogui.position()
@@ -53,7 +56,7 @@ def copy_html_with_extension(extension_button_pos):
     html_content = pyperclip.paste()
     return html_content
 
-def save_html_to_file(html_content, date_str, keyword_type='default'):
+def save_html_to_file(html_content, date_str, keyword_type='default', search_keyword=None):
     # date_str: '2025-07-09' または '250709' など
     if '-' in date_str:  # YYYY-MM-DD形式
         # 2025-07-10 -> 250710
@@ -72,11 +75,19 @@ def save_html_to_file(html_content, date_str, keyword_type='default'):
         print(f"エラー: 不正な日付形式です: {date_str}")
         return None
 
-    # prefixに基づいてフォルダを決定
-    prefix = config.KEYWORD_PREFIX_MAPPING.get(keyword_type)
-    folders = config.get_prefix_folders(prefix)
-    output_dir = folders['input']
-
+    # 出力先ディレクトリを決定
+    # コマンドライン引数で明示的に search_keyword が指定された場合のみ searchkeyword フォルダを使用
+    if search_keyword is not None and any(arg.startswith('--search-keyword') for arg in sys.argv[1:] if arg != '--search-keyword'):
+        # 明示的に検索キーワードが指定された場合はsearchkeywordフォルダに保存
+        output_dir = os.path.join(config.INPUT_FOLDER, 'searchkeyword')
+    else:
+        # キーワードタイプに基づいてフォルダを決定
+        prefix = config.KEYWORD_PREFIX_MAPPING.get(keyword_type, '')
+        if prefix and keyword_type != 'default':
+            output_dir = os.path.join(config.INPUT_FOLDER, prefix)
+        else:
+            output_dir = config.INPUT_FOLDER  # デフォルトはinput直下
+    
     # フォルダを作成
     os.makedirs(output_dir, exist_ok=True)
 
@@ -84,23 +95,32 @@ def save_html_to_file(html_content, date_str, keyword_type='default'):
     filepath = os.path.join(output_dir, filename)
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(html_content)
-    print(f"HTMLファイルを保存しました: {filepath}")
     return filepath
 
-def main(date_str=None, search_keyword=None, use_date=True, keyword_type='default'):
+def main(test_mode=False, date_str=None, search_keyword=None, use_date=True, keyword_type='default', verbose=False, date_override=None):
     # コマンドライン引数として実行された場合の処理
     import sys
-    if len(sys.argv) > 1 and not any(arg.startswith('--search-keyword') or 
-                                   arg.startswith('--keyword-type') or 
-                                   arg.startswith('--no-date') or 
-                                   arg.startswith('-k') for arg in sys.argv[1:]):
+    
+    # 直接パラメータで呼び出された場合の処理
+    if date_override is not None:
+        # date_overrideが指定されている場合はそれを使用
+        date_str = date_override
+    
+    if date_str is not None or search_keyword is not None or not use_date or keyword_type != 'default' or verbose:
+        # 直接パラメータで呼び出された場合、そのまま処理を続行
+        pass
+    # コマンドライン引数で呼び出された場合の処理
+    elif len(sys.argv) > 1 and not any(arg.startswith('--search-keyword') or 
+                                     arg.startswith('--keyword-type') or 
+                                     arg.startswith('--no-date') or 
+                                     arg.startswith('-k') for arg in sys.argv[1:]):
         # 引数として日付が指定されている場合
         parser = argparse.ArgumentParser(description='TwitterのHTMLファイルを自動生成')
         parser.add_argument('date', nargs='?', default=None, help='検索対象の日付 (YYMMDD形式)')
         parser.add_argument('--search-keyword', default=None,
                           help='検索キーワード (デフォルト: 設定ファイルから取得)')
-        parser.add_argument('--keyword-type', '-k', choices=['default', 'thai', 'en', 'chikirin', 'custom'],
-                          default='default', help='検索キーワードの種類')
+        parser.add_argument('--keyword-type', '-k', default='default', 
+                          help='検索キーワードの種類 (デフォルト: default)')
         parser.add_argument('--no-date', action='store_true',
                           help='日付指定なしで検索する')
         args = parser.parse_args()
@@ -110,16 +130,22 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
         search_keyword = args.search_keyword or search_keyword
         keyword_type = args.keyword_type
         use_date = not args.no_date
+        
+        # date_overrideが指定されている場合は日付を上書き
+        if date_override is not None:
+            date_str = date_override
     
     # モジュールとして呼び出された場合の処理
-    if date_str is None and use_date:
-        # 日付が指定されておらず、かつ日付を使用する場合
+    if date_str is None:
         parser = argparse.ArgumentParser(description='TwitterのHTMLファイルを自動生成')
-        parser.add_argument('date', help='検索対象の日付 (YYMMDD形式)')
+        if use_date:
+            parser.add_argument('date', nargs='?', default=None, help='検索対象の日付 (YYMMDD形式)')
+        else:
+            parser.add_argument('date', nargs='?', default=None, help='検索対象の日付 (YYMMDD形式、--no-dateの場合は無視されます)')
         parser.add_argument('--search-keyword', default=search_keyword,
                           help='検索キーワード (デフォルト: 設定ファイルから取得)')
-        parser.add_argument('--keyword-type', '-k', choices=['default', 'thai', 'en', 'chikirin', 'custom'],
-                          default=keyword_type, help='検索キーワードの種類')
+        parser.add_argument('--keyword-type', '-k', default=keyword_type, 
+                          help='検索キーワードの種類 (デフォルト: {})'.format(keyword_type))
         parser.add_argument('--no-date', action='store_true',
                           help='日付指定なしで検索する')
         parser.add_argument('--verbose', '-v', action='store_true',
@@ -131,26 +157,73 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
         search_keyword = args.search_keyword
         keyword_type = args.keyword_type
         use_date = not args.no_date
-
+        verbose = args.verbose or verbose
+        
+        # date_overrideが指定されている場合は日付を上書き
+        if date_override is not None:
+            date_str = date_override
+            use_date = True
+    
     # 検索キーワードの決定
     if search_keyword is None:
         if keyword_type == 'custom':
             search_keyword = input("検索キーワードを入力してください: ")
         else:
             search_keyword = config.SEARCH_KEYWORDS.get(keyword_type, config.DEFAULT_SEARCH_KEYWORD)
+    
+    # 日付が指定されておらず、かつ日付を使用する場合はエラー
+    if date_str is None and use_date and not test_mode:
+        print("エラー: 日付が指定されていません。--no-date オプションを使用するか、日付を指定してください。")
+        sys.exit(1)
 
-    # クリップボードからuntil日時を取得
+    # until_datetime を初期化
+    until_datetime = ""
+    
     try:
-        clipboard_content = pyperclip.paste()
-        if clipboard_content and isinstance(clipboard_content, str) and clipboard_content.startswith('until:'):
-            until_datetime = clipboard_content
-            print(f"クリップボードからuntil日時を取得: {until_datetime}")
-
-            # --no-dateの場合のみ、クリップボードの日時を使用
-            if not use_date:
+        # 日付指定がある場合
+        if use_date and date_str:
+            # 日付形式をYYYY-MM-DDに変換（6桁形式の場合）
+            if len(date_str) == 6 and date_str.isdigit():
+                year = 2000 + int(date_str[:2])
+                month = date_str[2:4]
+                day = date_str[4:6]
+                date_ymd = f"{year}-{month}-{day}"
+            else:
+                # 既にYYYY-MM-DD形式の場合はそのまま使用
+                date_ymd = date_str
+            
+            # until日付を設定
+            until_datetime = f"until:{date_ymd}_23:59:59_JST"
+            print(f"指定された日付のuntil日時を使用: {until_datetime}")
+            # 後続の処理で使用するためにdate_strを更新
+            date_str = date_ymd
+        elif not use_date:
+            # クリップボードからuntil日時を取得
+            import pyperclip
+            clipboard_content = pyperclip.paste().strip()
+            if clipboard_content.startswith('until:') and '_JST' in clipboard_content:
+                until_datetime = clipboard_content
+                print(f"クリップボードからuntil日時を取得: {until_datetime}")
+                # 日付部分を抽出（例: until:2025-08-26_15:45:13_JST から 2025-08-26 を抽出）
+                date_part = until_datetime.split('_')[0].replace('until:', '')
+                date_ymd = date_part.split(' ')[0]  # 日付部分のみを取得
+                date_str = date_ymd
+                print(f"クリップボードの日時からファイル名用日付を生成: {date_str.replace('-', '')}")
+            else:
+                # 現在時刻を使用
+                now = datetime.now()
+                until_datetime = now.strftime("until:%Y-%m-%d_%H:%M:%S_JST")
+                date_str = now.strftime("%Y-%m-%d")
+                print(f"現在時刻のuntil日時を使用: {until_datetime}")
+        else:
+            # --no-date の場合はクリップボードを確認
+            clipboard_content = pyperclip.paste()
+            if clipboard_content and isinstance(clipboard_content, str) and clipboard_content.startswith('until:'):
+                until_datetime = clipboard_content
+                print(f"クリップボードからuntil日時を取得: {until_datetime}")
+                
                 # until:2025-05-08_16:54:40_JST から 250508 を生成
                 try:
-                    # until:2025-05-08_16:54:40_JST の形式をパース
                     import re
                     match = re.match(r'until:(\d{4})-(\d{2})-(\d{2})_\d{2}:\d{2}:\d{2}_JST', until_datetime)
                     if match:
@@ -161,66 +234,33 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
                         date_str = f"{year[2:]}{month}{day}"  # 2025 -> 25, 05, 08 -> 250508
                         print(f"クリップボードの日時からファイル名用日付を生成: {date_str}")
                     else:
-                        print(f"エラー: クリップボードのuntil日時の形式が正しくありません: {until_datetime}")
+                        print(f"警告: クリップボードのuntil日時の形式が正しくありません: {until_datetime}")
                         print("期待される形式: until:YYYY-MM-DD_HH:MM:SS_JST")
-                        sys.exit(1)
+                        # フォーマットが正しくない場合は現在時刻を使用
+                        raise ValueError("Invalid clipboard format")
                 except Exception as e:
                     print(f"until日時のパースに失敗: {e}")
-                    sys.exit(1)
+                    # エラーが発生した場合は現在時刻を使用
+                    now = datetime.now()
+                    until_datetime = f"until:{now.strftime('%Y-%m-%d_%H:%M:%S')}_JST"
+                    date_str = now.strftime('%Y-%m-%d')
+                    print(f"現在時刻のuntil日時を使用: {until_datetime}")
             else:
-                # 通常の場合は、指定された日付の23:59:59を使用（クリップボードは無視）
-                # 日付形式をYYYY-MM-DDに変換（6桁形式の場合）
-                if len(date_str) == 6 and date_str.isdigit():
-                    year = 2000 + int(date_str[:2])
-                    month = date_str[2:4]
-                    day = date_str[4:6]
-                    date_ymd = f"{year}-{month}-{day}"
-                else:
-                    # 既にYYYY-MM-DD形式の場合はそのまま使用
-                    date_ymd = date_str
-                
-                # until日付もYYYY-MM-DD形式で統一
-                # date_ymd は既に YYYY-MM-DD 形式
-                until_datetime = f"until:{date_ymd}_23:59:59_JST"
-                print(f"指定された日付のuntil日時を使用: {until_datetime}")
-                # 後続の処理で使用するためにdate_strを更新
-                date_str = date_ymd
-        else:
-            # --no-dateの場合、クリップボードにuntil日時がない場合はエラー
-            if not use_date:
-                print("エラー: --no-dateオプション使用時は、クリップボードにuntil日時が必要です")
-                print("期待される形式: until:YYYY-MM-DD_HH:MM:SS_JST")
-                sys.exit(1)
-            else:
-                # 通常の場合は、指定された日付の23:59:59を使用
-                # date_str が YYMMDD 形式の場合は YYYY-MM-DD に変換
-                if len(date_str) == 6 and date_str.isdigit():
-                    year = 2000 + int(date_str[:2])
-                    month = date_str[2:4]
-                    day = date_str[4:6]
-                    date_ymd = f"{year}-{month}-{day}"
-                else:
-                    date_ymd = date_str  # 既にYYYY-MM-DD形式の場合
-                    
-                until_datetime = f"until:{date_ymd}_23:59:59_JST"
-                print(f"指定された日付のuntil日時を使用: {until_datetime}")
-                date_str = date_ymd  # 後続の処理で使用するために更新
+                # クリップボードに有効な値がない場合は現在時刻を使用
+                now = datetime.now()
+                until_datetime = f"until:{now.strftime('%Y-%m-%d_%H:%M:%S')}_JST"
+                date_str = now.strftime('%Y-%m-%d')
+                print(f"現在時刻のuntil日時を使用: {until_datetime}")
     except Exception as e:
-        print(f"クリップボードの読み取りに失敗: {e}")
+        print(f"エラーが発生しました: {e}")
         if not use_date:
-            print("エラー: --no-dateオプション使用時は、クリップボードにuntil日時が必要です")
-            sys.exit(1)
+            # --no-date の場合は現在時刻を使用
+            now = datetime.now()
+            until_datetime = f"until:{now.strftime('%Y-%m-%d_%H:%M:%S')}_JST"
+            date_str = now.strftime('%Y-%m-%d')
+            print(f"現在時刻のuntil日時を使用: {until_datetime}")
         else:
-            # date_str が YYMMDD 形式の場合は YYYY-MM-DD に変換
-            if len(date_str) == 6 and date_str.isdigit():
-                year = 2000 + int(date_str[:2])
-                month = date_str[2:4]
-                day = date_str[4:6]
-                date_ymd = f"{year}-{month}-{day}"
-            else:
-                date_ymd = date_str  # 既にYYYY-MM-DD形式の場合
-                
-            until_datetime = f"until:{date_ymd}_23:59:59_JST"
+            print("エラー: 日付の指定が必要です。--no-date オプションを使用するか、日付を指定してください。")
             print(f"指定された日付のuntil日時を使用: {until_datetime}")
             date_str = date_ymd  # 後続の処理で使用するために更新
 
@@ -269,11 +309,11 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
     else:
         search_query = f"{until_datetime} {search_keyword}"
     print(f"検索クエリ: {search_query}")
-    print("位置設定を開始します...")
+    print("位置設定を開始します...\n")
     # 各位置を取得
-    print("\n=== 位置設定 ===")
-    search_box_pos = get_position("検索ボックスの位置(✗ボタンの位置)にマウスを移動してください")
-    extension_button_pos = get_position("ブラウザ拡張ボタンの位置にマウスを移動してください")
+    print("== 位置設定 ==")
+    search_box_pos = get_position("検索ボックスの位置(✗ボタンの位置)にマウスを移動してください", test_mode=test_mode)
+    extension_button_pos = get_position("ブラウザ拡張ボタンの位置にマウスを移動してください", test_mode=test_mode)
 
     print("\n=== 自動化開始 ===")
     time.sleep(0.5)
@@ -282,11 +322,6 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
         # Twitterの検索を実行
         print("Twitterの検索を実行中...")
         navigate_to_twitter_search(search_query, search_box_pos)
-
-        # “最新”タブをクリック（除外済み）
-        # print("“最新”タブをクリックします...")
-        # pyautogui.click(latest_tab_pos)
-        # time.sleep(1)  # タブ切り替えの待機
 
         # ページの読み込みを待機
         print("ページの読み込みを待機中...")
@@ -297,20 +332,29 @@ def main(date_str=None, search_keyword=None, use_date=True, keyword_type='defaul
         html_content = copy_html_with_extension(extension_button_pos)
 
         if html_content:
-            # HTMLファイルに保存
-            filepath = save_html_to_file(html_content, date_str, keyword_type)
-            print(f"処理が完了しました！ファイル: {filepath}")
-            return filepath  # 成功時はファイルパスを返す
+            # HTMLをファイルに保存
+            filepath = save_html_to_file(html_content, date_str, keyword_type, search_keyword)
+            if filepath:
+                print(f"HTMLファイルを保存しました: {filepath}")
+                return True
+            else:
+                print("HTMLファイルの保存に失敗しました")
+                return False
         else:
             print("エラー: HTMLの取得に失敗しました")
-            return None  # 失敗時はNoneを返す
+            return False
 
+    except ValueError as ve:
+        print("エラー: 無効な日付形式です。YYMMDD または YYYY-MM-DD 形式で指定してください")
+        print("例: 250701 または 2025-07-01")
+        print(f"詳細: {ve}")
+        return False
     except KeyboardInterrupt:
         print("\n処理が中断されました")
-        return None
+        return False
     except Exception as e:
         print(f"エラーが発生しました: {e}")
-        return None
+        return False
 
 if __name__ == "__main__":
     main()

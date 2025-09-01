@@ -10,6 +10,7 @@ Twitter/X の検索結果 HTML からツイート情報を自動抽出・整理�
 - 「次回検索用 until 日時」を自動でクリップボードにコピー
 - 検索条件の違いをコマンドオプションで柔軟に指定可能
 - テストも充実、安心してカスタマイズ可能
+- シンプルなコマンドラインインターフェース
 
 ## インストール
 
@@ -48,23 +49,30 @@ pytest --cov=src tests/
 
 ## 基本的な使い方
 
+### 一括実行（推奨）
+
+```bash
+# 最新のツイートを取得（現在日時を使用）
+python main.py all --no-date -k manekineko
+
+# 特定の日付のツイートを取得（YYMMDD形式）
+python main.py all 250831 -k chikirin
+
+# 詳細表示モードで実行
+python main.py all 250831 -k manekineko --verbose
+```
+
 ### HTMLファイルの作成
 
 ```bash
 # 基本形（日付指定）
-python main.py --html 250706
+python main.py html 250706
 
-# 日付指定なし（クリップボードから日時を取得）
-python main.py --html --no-date
-
-# カスタム検索キーワードを指定
-python main.py --html 250706 --search-keyword "from:example"
+# 日付指定なし（現在日時を使用）
+python main.py html --no-date
 
 # キーワードタイプを指定
-python main.py --html 250706 -k chikirin
-
-# 詳細表示モード
-python main.py --html 250706 --verbose
+python main.py html 250706 -k chikirin
 ```
 
 - 指定日（例: 2025/07/06）の 0:00:00〜23:59:59 で検索
@@ -76,14 +84,14 @@ python main.py --html 250706 --verbose
 ### ツイートの抽出（既存HTMLから）
 
 ```bash
-# 基本形
-python main.py --extract 250706
+# 基本形（最新のHTMLファイルから抽出）
+python main.py extract -k manekineko
 
-# カスタム検索キーワードを指定
-python main.py --extract 250706 --search-keyword "from:example"
+# 特定の日付のHTMLから抽出
+python main.py extract 250706 -k chikirin
 
-# キーワードタイプを指定
-python main.py --extract 250706 -k chikirin
+# 詳細表示モードで実行
+python main.py extract 250706 -k manekineko --verbose
 ```
 
 - 既存のHTMLファイルからツイートを抽出

@@ -146,11 +146,37 @@ def format_tweet_text(text):
 
     return ' '.join(formatted_lines)
 
-def save_tweets_to_files(tweets, base_filename="extracted_tweets"):
+def save_tweets_to_files(tweets, base_filename="extracted_tweets", keyword_type=None):
     """ツイートデータをファイルに保存"""
-
-    # テキストファイルに保存（txtフォルダ）
-    txt_path = f"{base_filename}.txt"
+    
+    # 出力先ディレクトリの設定
+    if keyword_type in config.KEYWORD_PREFIX_MAPPING:
+        prefix = config.KEYWORD_PREFIX_MAPPING[keyword_type]
+        if prefix:
+            # キーワードタイプに応じた出力フォルダを取得
+            folders = config.get_prefix_folders(prefix)
+            txt_output_folder = folders['txt']
+            json_output_folder = folders['json']
+            
+            # 出力フォルダが存在しなければ作成
+            os.makedirs(txt_output_folder, exist_ok=True)
+            os.makedirs(json_output_folder, exist_ok=True)
+            
+            # 出力パスを設定
+            txt_path = os.path.join(txt_output_folder, f"{base_filename}.txt")
+            json_path = os.path.join(json_output_folder, f"{base_filename}.json")
+        else:
+            # デフォルトの出力フォルダを使用
+            folders = config.get_prefix_folders(None)  # デフォルトのフォルダを取得
+            txt_path = os.path.join(folders['txt'], f"{base_filename}.txt")
+            json_path = os.path.join(folders['json'], f"{base_filename}.json")
+    else:
+        # デフォルトの出力フォルダを使用
+        folders = config.get_prefix_folders(None)  # デフォルトのフォルダを取得
+        txt_path = os.path.join(folders['txt'], f"{base_filename}.txt")
+        json_path = os.path.join(folders['json'], f"{base_filename}.json")
+    
+    # テキストファイルに保存
     with open(txt_path, "w", encoding="utf-8") as f:
         f.write(f"抽出日時: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"抽出ツイート数: {len(tweets)}\n")
@@ -169,14 +195,6 @@ def save_tweets_to_files(tweets, base_filename="extracted_tweets"):
             f.write(f"{formatted_text}\n")
             f.write("-" * 30 + "\n")
 
-    # JSONファイルに保存（jsonフォルダ）
-    json_folder = os.path.join(os.path.dirname(os.path.dirname(base_filename)), "json")
-    if not os.path.exists(json_folder):
-        os.makedirs(json_folder)
-
-    json_filename = os.path.basename(base_filename) + ".json"
-    json_path = os.path.join(json_folder, json_filename)
-
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump({
             'extraction_time': datetime.now().isoformat(),
@@ -190,8 +208,9 @@ def main():
     """メイン処理"""
     # コマンドライン引数の解析
     parser = argparse.ArgumentParser(description='HTMLファイルからツイートを抽出します')
-    parser.add_argument('date', help='日付（例: 250706, 250624）')
-    parser.add_argument('--keyword-type', '-k', help='キーワードタイプ (default, thai, en, chikirin, custom)', default='default')
+    parser.add_argument('date', nargs='?', help='日付（例: 0706, 0624）')
+    parser.add_argument('--keyword-type', '-k', help='キーワードタイプ (default, thai, en, chikirin, custom, manekineko)', default='default')
+    parser.add_argument('--no-date', action='store_true', help='最新のHTMLファイルを使用する（日付指定なし）')
     parser.add_argument('--verbose', '-v', action='store_true', help='詳細な出力を有効化')
 
     args = parser.parse_args()
@@ -211,25 +230,45 @@ def main():
             # prefixがNoneの場合は通常のフォルダを検索
             html_file = os.path.join(config.INPUT_FOLDER, f"{args.date}.html")
     
-    # 指定された場所にファイルがない場合は自動検索
-    if html_file is None or not os.path.exists(html_file):
-        # まずprefix別フォルダで検索（優先）
-        for keyword_type, p in config.KEYWORD_PREFIX_MAPPING.items():
-            if p is not None:
-                folders = config.get_prefix_folders(p)
-                test_html_file = os.path.join(folders['input'], f"{args.date}.html")
-                if os.path.exists(test_html_file):
-                    html_file = test_html_file
-                    prefix = p  # prefixを設定
-                    break
-
-        # それでも見つからない場合は通常のフォルダを検索
+    # 日付が指定されていて、かつファイルが存在しない場合にのみ検索を実行
+    if args.date and not args.no_date:
+        # 指定された場所にファイルがない場合は自動検索
         if html_file is None or not os.path.exists(html_file):
-            html_file = os.path.join(config.INPUT_FOLDER, f"{args.date}.html")
-            prefix = None  # 通常フォルダの場合はprefixなし
+            # まずprefix別フォルダで検索（優先）
+            for keyword_type, p in config.KEYWORD_PREFIX_MAPPING.items():
+                if p is not None:
+                    folders = config.get_prefix_folders(p)
+                    test_html_file = os.path.join(folders['input'], f"{args.date}.html")
+                    if os.path.exists(test_html_file):
+                        html_file = test_html_file
+                        prefix = p  # prefixを設定
+                        break
 
-    if html_file is None or not os.path.exists(html_file):
-        print(f"エラー: ファイル '{args.date}.html' が見つかりません。")
+            # それでも見つからない場合は通常のフォルダを検索
+            if html_file is None or not os.path.exists(html_file):
+                html_file = os.path.join(config.INPUT_FOLDER, f"{args.date}.html")
+                prefix = None  # 通常フォルダの場合はprefixなし
+    
+    # --no-date が指定されている場合は最新のHTMLファイルを使用
+    if args.no_date:
+        # キーワードタイプに応じた入力フォルダを取得
+        if prefix is not None:
+            folders = config.get_prefix_folders(prefix)
+            input_dir = folders['input']
+        else:
+            input_dir = config.INPUT_FOLDER
+        
+        # 最新のHTMLファイルを検索
+        html_files = [f for f in os.listdir(input_dir) if f.endswith('.html')]
+        if html_files:
+            # 更新日時でソートして最新のファイルを取得
+            html_files.sort(key=lambda x: os.path.getmtime(os.path.join(input_dir, x)), reverse=True)
+            html_file = os.path.join(input_dir, html_files[0])
+            print(f"最新のHTMLファイルを使用: {html_file}")
+
+    # ファイルが存在しない場合はエラー
+    if not html_file or not os.path.exists(html_file):
+        print(f"エラー: 有効なHTMLファイルが見つかりません。")
         print("以下の場所を確認してください:")
         for keyword_type, p in config.KEYWORD_PREFIX_MAPPING.items():
             if p is not None:
@@ -238,11 +277,31 @@ def main():
         print(f"  - {config.INPUT_FOLDER}/")
         sys.exit(1)
 
-    # 出力フォルダの設定
-    folders = config.get_prefix_folders(prefix)
-    output_filename = os.path.join(folders['txt'], args.date)
+    # 出力ファイル名のベースを設定
+    if args.no_date and not args.date:
+        # 最新のファイルを使用する場合、ファイル名から日付を抽出
+        base_filename = os.path.splitext(os.path.basename(html_file))[0]
+        # ファイル名から日付部分を抽出 (例: 250706.html から 250706 を抽出)
+        date_match = re.search(r'(\d{6})(?:\.html)?$', base_filename)
+        if date_match:
+            output_filename = date_match.group(1)
+            if args.verbose:
+                print(f"ファイル名から日付を抽出: {output_filename}")
+        else:
+            # 日付が見つからない場合は現在日時を使用
+            output_filename = datetime.now().strftime('%y%m%d')
+            if args.verbose:
+                print(f"日付を検出できなかったため、現在日時を使用: {output_filename}")
+    else:
+        # 通常の日付指定の場合
+        output_filename = args.date
 
     # 出力フォルダの作成
+    if prefix:
+        folders = config.get_prefix_folders(prefix)
+    else:
+        folders = config.get_prefix_folders(None)  # デフォルトのフォルダを取得
+    
     txt_output_folder = folders['txt']
     json_output_folder = folders['json']
 
@@ -262,8 +321,8 @@ def main():
     if tweets:
         print(f"\n抽出完了: {len(tweets)} 件のツイートを抽出しました")
 
-        # ファイルに保存
-        save_tweets_to_files(tweets, output_filename)
+        # ツイートを抽出して保存
+        save_tweets_to_files(tweets, output_filename, args.keyword_type)
 
         # 結果を表示
         print("\n抽出されたツイート:")
