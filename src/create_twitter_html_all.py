@@ -10,6 +10,8 @@ import time
 import pyperclip
 import sys
 import os
+import json
+from pathlib import Path
 from datetime import datetime
 import argparse
 
@@ -17,44 +19,123 @@ import argparse
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import config
 
-def get_position(prompt, test_mode=False):
-    """指定された位置をユーザーにクリックさせて取得する"""
+def debug_print(message, verbose_flag=False):
+    """デバッグメッセージを表示する
+
+    Args:
+        message (str): 表示するメッセージ
+        verbose_flag (bool): 詳細出力モードの場合にTrue
+    """
+    if verbose_flag:
+        print(f"[DEBUG] {message}")
+
+def ensure_config_dir():
+    """設定ディレクトリが存在することを確認し、なければ作成する"""
+    os.makedirs(config.CONFIG_DIR, exist_ok=True)
+
+def save_positions(positions):
+    """マウスポジションをファイルに保存する"""
+    try:
+        ensure_config_dir()
+        with open(config.POSITION_CONFIG_PATH, 'w') as f:
+            json.dump(positions, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"警告: マウスポジションの保存に失敗しました: {e}")
+        return False
+
+def load_positions():
+    """保存されたマウスポジションを読み込む"""
+    try:
+        if os.path.exists(config.POSITION_CONFIG_PATH):
+            with open(config.POSITION_CONFIG_PATH, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"警告: マウスポジションの読み込みに失敗しました: {e}")
+
+    # デフォルトの位置を返す
+    return {
+        'search_box': {'x': 0, 'y': 0},
+        'extension_button': {'x': 0, 'y': 0}
+    }
+
+def get_position(prompt, position_name, test_mode=False, use_saved=False, args=None):
+    """指定された位置をユーザーにクリックさせて取得する
+
+    Args:
+        prompt (str): ユーザーに表示するプロンプト
+        position_name (str): 位置の名前 ('search_box' または 'extension_button')
+        test_mode (bool): テストモードの場合はTrue
+        use_saved (bool): 保存された位置を使用する場合はTrue
+        args: コマンドライン引数
+
+    Returns:
+        dict: 位置情報を含む辞書 {'x': x座標, 'y': y座標}
+    """
+    # テストモードの場合は固定の位置を返す
     if test_mode:
-        from types import SimpleNamespace
-        return SimpleNamespace(x=100, y=200)  # テスト用の固定座標
-    print(prompt)
-    input("準備ができたらEnterキーを押してください...")
+        return {'x': 100, 'y': 200}  # テスト用の固定座標
+
+    # argsから位置情報が指定されている場合はそれを使用
+    if hasattr(args, position_name) and getattr(args, position_name) is not None:
+        return getattr(args, position_name)
+
+    # 保存された位置を確認
+    positions = load_positions()
+    
+    # 保存された位置があり、有効な座標の場合
+    if use_saved and positions[position_name]['x'] > 0 and positions[position_name]['y'] > 0:
+        return {
+            'x': positions[position_name]['x'],
+            'y': positions[position_name]['y']
+        }
+
+    # 新しい位置を取得
+    print(f"\n{prompt}")
+    input("マウスを移動させて、Enterキーを押すと現在のマウス位置を取得します...")
     position = pyautogui.position()
-    print(f"取得した座標: {position}")
-    return position
+    print(f"\n取得した座標: x={position.x}, y={position.y}")
+
+    # 位置を保存
+    positions = load_positions()
+    positions[position_name] = {'x': position.x, 'y': position.y}
+    save_positions(positions)
+    print("位置を保存しました。")
+
+    return {'x': position.x, 'y': position.y}
 
 def navigate_to_twitter_search(search_query, search_box_pos):
-    """Twitterの検索ボックスに検索クエリを入力する"""
-    # 検索ボックスをクリック & xボタンをクリック
-    pyautogui.click(search_box_pos)
-    pyautogui.click(search_box_pos)
-    time.sleep(0.5)
+    """Twitterの検索ボックスに検索クエリを入力する
+
+    Args:
+        search_query (str): 検索クエリ
+        search_box_pos (dict): 検索ボックスと×ボタンの座標 {'x': int, 'y': int}
+    """
+    # 検索ボックスをクリックしてフォーカス
+    pyautogui.click(search_box_pos['x'], search_box_pos['y'])
+    time.sleep(0.2)
+    # ×ボタンをクリックして検索をクリア
+    pyautogui.click(search_box_pos['x'], search_box_pos['y'])
+    time.sleep(0.2)
 
     # 検索クエリをクリップボードにコピーして貼り付け
     import pyperclip
-    pyautogui.click(search_box_pos)
+    pyautogui.click(search_box_pos['x'], search_box_pos['y'])
     pyperclip.copy(search_query)
-    print(f'search_query : {search_query}')
     pyautogui.hotkey('command', 'v')
-
-    # Enterキーを押して検索を実行
+    time.sleep(0.5)
     pyautogui.press('enter')
-    time.sleep(1)  # 検索結果の読み込みを待つ
+    time.sleep(1)  # 検索結果が表示されるのを待つ
 
 def copy_html_with_extension(extension_button_pos):
     """ブラウザ拡張ボタンを押してHTMLをクリップボードにコピー"""
     # 拡張ボタンをクリック
-    pyautogui.click(extension_button_pos)
-    time.sleep(0.5)  # コピー処理の完了を待つ
+    pyautogui.click(extension_button_pos['x'], extension_button_pos['y'])
+    time.sleep(1)  # コピーが完了するのを待つ
 
     # クリップボードからHTMLを取得
-    html_content = pyperclip.paste()
-    return html_content
+    import pyperclip
+    return pyperclip.paste()
 
 def save_html_to_file(html_content, date_str, keyword_type='default', search_keyword=None):
     # date_str: '2025-07-09' または '250709' など
@@ -87,7 +168,7 @@ def save_html_to_file(html_content, date_str, keyword_type='default', search_key
             output_dir = os.path.join(config.INPUT_FOLDER, prefix)
         else:
             output_dir = config.INPUT_FOLDER  # デフォルトはinput直下
-    
+
     # フォルダを作成
     os.makedirs(output_dir, exist_ok=True)
 
@@ -97,44 +178,68 @@ def save_html_to_file(html_content, date_str, keyword_type='default', search_key
         f.write(html_content)
     return filepath
 
-def main(test_mode=False, date_str=None, search_keyword=None, use_date=True, keyword_type='default', verbose=False, date_override=None):
+def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
+         keyword_type='default', verbose=False, date_override=None, continuous=False,
+         search_box=None, extension_button=None):
     # コマンドライン引数として実行された場合の処理
     import sys
-    
+
+    # デフォルトのargsオブジェクトを作成
+    class Args:
+        def __init__(self):
+            self.continuous = continuous
+            self.verbose = verbose
+            self.search_box = search_box
+            self.extension_button = extension_button
+
+    args = Args()
+
     # 直接パラメータで呼び出された場合の処理
     if date_override is not None:
         # date_overrideが指定されている場合はそれを使用
         date_str = date_override
-    
+
     if date_str is not None or search_keyword is not None or not use_date or keyword_type != 'default' or verbose:
         # 直接パラメータで呼び出された場合、そのまま処理を続行
         pass
     # コマンドライン引数で呼び出された場合の処理
-    elif len(sys.argv) > 1 and not any(arg.startswith('--search-keyword') or 
-                                     arg.startswith('--keyword-type') or 
-                                     arg.startswith('--no-date') or 
+    elif len(sys.argv) > 1 and not any(arg.startswith('--search-keyword') or
+                                     arg.startswith('--keyword-type') or
+                                     arg.startswith('--no-date') or
                                      arg.startswith('-k') for arg in sys.argv[1:]):
         # 引数として日付が指定されている場合
         parser = argparse.ArgumentParser(description='TwitterのHTMLファイルを自動生成')
         parser.add_argument('date', nargs='?', default=None, help='検索対象の日付 (YYMMDD形式)')
         parser.add_argument('--search-keyword', default=None,
                           help='検索キーワード (デフォルト: 設定ファイルから取得)')
-        parser.add_argument('--keyword-type', '-k', default='default', 
+        parser.add_argument('--keyword-type', '-k', default='default',
                           help='検索キーワードの種類 (デフォルト: default)')
         parser.add_argument('--no-date', action='store_true',
                           help='日付指定なしで検索する')
-        args = parser.parse_args()
-        
+        parser.add_argument('--verbose', '-v', action='store_true',
+                          help='詳細な出力を有効化')
+        parser.add_argument('--continuous', '-c', action='store_true',
+                          help='保存されたマウスポジションを使用して連続実行')
+
+        # コマンドライン引数をパース
+        cmd_args = parser.parse_args()
+
         # 引数から値を設定
-        date_str = args.date
-        search_keyword = args.search_keyword or search_keyword
-        keyword_type = args.keyword_type
-        use_date = not args.no_date
-        
+        date_str = cmd_args.date
+        search_keyword = cmd_args.search_keyword or search_keyword
+        keyword_type = cmd_args.keyword_type
+        use_date = not cmd_args.no_date
+        verbose = cmd_args.verbose or verbose
+        continuous = cmd_args.continuous or continuous
+
+        # argsオブジェクトを更新
+        args.continuous = continuous
+        args.verbose = verbose
+
         # date_overrideが指定されている場合は日付を上書き
         if date_override is not None:
             date_str = date_override
-    
+
     # モジュールとして呼び出された場合の処理
     if date_str is None:
         parser = argparse.ArgumentParser(description='TwitterのHTMLファイルを自動生成')
@@ -144,33 +249,42 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True, key
             parser.add_argument('date', nargs='?', default=None, help='検索対象の日付 (YYMMDD形式、--no-dateの場合は無視されます)')
         parser.add_argument('--search-keyword', default=search_keyword,
                           help='検索キーワード (デフォルト: 設定ファイルから取得)')
-        parser.add_argument('--keyword-type', '-k', default=keyword_type, 
+        parser.add_argument('--keyword-type', '-k', default=keyword_type,
                           help='検索キーワードの種類 (デフォルト: {})'.format(keyword_type))
         parser.add_argument('--no-date', action='store_true',
                           help='日付指定なしで検索する')
         parser.add_argument('--verbose', '-v', action='store_true',
                           help='詳細な出力を有効化')
-        args = parser.parse_args()
-        
+        parser.add_argument('--continuous', '-c', action='store_true',
+                          help='保存されたマウスポジションを使用して連続実行')
+
+        # コマンドライン引数をパース
+        cmd_args = parser.parse_args()
+
         # 引数から値を設定
-        date_str = args.date
-        search_keyword = args.search_keyword
-        keyword_type = args.keyword_type
-        use_date = not args.no_date
-        verbose = args.verbose or verbose
-        
+        date_str = cmd_args.date
+        search_keyword = cmd_args.search_keyword
+        keyword_type = cmd_args.keyword_type
+        use_date = not cmd_args.no_date
+        verbose = cmd_args.verbose or verbose
+        continuous = cmd_args.continuous or continuous
+
+        # argsオブジェクトを更新
+        args.continuous = continuous
+        args.verbose = verbose
+
         # date_overrideが指定されている場合は日付を上書き
         if date_override is not None:
             date_str = date_override
             use_date = True
-    
+
     # 検索キーワードの決定
     if search_keyword is None:
         if keyword_type == 'custom':
             search_keyword = input("検索キーワードを入力してください: ")
         else:
             search_keyword = config.SEARCH_KEYWORDS.get(keyword_type, config.DEFAULT_SEARCH_KEYWORD)
-    
+
     # 日付が指定されておらず、かつ日付を使用する場合はエラー
     if date_str is None and use_date and not test_mode:
         print("エラー: 日付が指定されていません。--no-date オプションを使用するか、日付を指定してください。")
@@ -178,7 +292,7 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True, key
 
     # until_datetime を初期化
     until_datetime = ""
-    
+
     try:
         # 日付指定がある場合
         if use_date and date_str:
@@ -191,7 +305,7 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True, key
             else:
                 # 既にYYYY-MM-DD形式の場合はそのまま使用
                 date_ymd = date_str
-            
+
             # until日付を設定
             until_datetime = f"until:{date_ymd}_23:59:59_JST"
             print(f"指定された日付のuntil日時を使用: {until_datetime}")
@@ -221,7 +335,7 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True, key
             if clipboard_content and isinstance(clipboard_content, str) and clipboard_content.startswith('until:'):
                 until_datetime = clipboard_content
                 print(f"クリップボードからuntil日時を取得: {until_datetime}")
-                
+
                 # until:2025-05-08_16:54:40_JST から 250508 を生成
                 try:
                     import re
@@ -293,10 +407,10 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True, key
             since_date = f"{year}-{month}-{day}"
         else:
             since_date = date_str  # 既にYYYY-MM-DD形式の場合
-            
+
         # sinceとuntilの形式を統一 (YYYY-MM-DD_HH:MM:SS_JST)
         since_str = f"since:{since_date}_00:00:00_JST"
-        
+
         # untilの形式をチェックして必要に応じて変換
         if until_datetime.startswith('until:') and '_' in until_datetime:
             # 既にuntil:が付いている場合はそのまま使用
@@ -304,7 +418,7 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True, key
         else:
             # until: が付いていない場合は追加
             until_datetime = f"until:{until_datetime}"
-            
+
         search_query = f"{since_str} {until_datetime} {search_keyword}"
     else:
         search_query = f"{until_datetime} {search_keyword}"
@@ -312,8 +426,24 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True, key
     print("位置設定を開始します...\n")
     # 各位置を取得
     print("== 位置設定 ==")
-    search_box_pos = get_position("検索ボックスの位置(✗ボタンの位置)にマウスを移動してください", test_mode=test_mode)
-    extension_button_pos = get_position("ブラウザ拡張ボタンの位置にマウスを移動してください", test_mode=test_mode)
+    # 連続実行モードの場合は保存された位置を使用
+    use_saved = getattr(args, 'continuous', False) if hasattr(args, 'continuous') else False
+
+    search_box_pos = get_position(
+        "検索ボックスの位置(✗ボタンの位置)にマウスを移動してください",
+        'search_box',
+        test_mode=test_mode,
+        use_saved=use_saved,
+        args=args
+    )
+
+    extension_button_pos = get_position(
+        "ブラウザ拡張ボタンの位置にマウスを移動してください",
+        'extension_button',
+        test_mode=test_mode,
+        use_saved=use_saved,
+        args=args
+    )
 
     print("\n=== 自動化開始 ===")
     time.sleep(0.5)
