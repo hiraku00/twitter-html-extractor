@@ -62,5 +62,16 @@ TIME_FORMAT = '%H:%M:%S'
 SEARCH_QUERY_TEMPLATE_WITH_SINCE = 'since:{date}_00:00:00_JST {until_datetime} {keyword}'
 SEARCH_QUERY_TEMPLATE_WITHOUT_SINCE = '{until_datetime} {keyword}'
 
+# マウスポジション設定ファイルのパス
+import os
+CONFIG_DIR = os.path.expanduser("~/.config/twitter-html-extractor")
+POSITION_CONFIG_PATH = os.path.join(CONFIG_DIR, "positions.json")
+
+# デフォルトのマウスポジション設定
+DEFAULT_POSITIONS = {
+    'search_box': {'x': 0, 'y': 0},  # 検索ボックスの位置
+    'extension_button': {'x': 0, 'y': 0}  # 拡張ボタンの位置
+}
+
 # デバッグ設定
 DEBUG = False

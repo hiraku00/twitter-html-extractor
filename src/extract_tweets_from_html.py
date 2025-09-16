@@ -349,8 +349,10 @@ def main():
                 print(f"until日付をクリップボードにコピーしました: until:{until_str}_JST")
             except Exception as e:
                 print(f"クリップボードへのコピーに失敗しました: {e}")
+        return True  # 成功
     else:
         print("ツイートを抽出できませんでした。")
+        return False  # 失敗
 
 if __name__ == "__main__":
     main()
