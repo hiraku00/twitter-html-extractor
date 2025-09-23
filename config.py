@@ -66,7 +66,9 @@ SEARCH_QUERY_TEMPLATE_WITHOUT_SINCE = '{until_datetime} {keyword}'
 
 # マウスポジション設定ファイルのパス
 import os
-CONFIG_DIR = os.path.expanduser("~/.config/twitter-html-extractor")
+# リポジトリ内に保存（data/config/positions.json）
+_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+CONFIG_DIR = os.path.join(_PROJECT_ROOT, 'data', 'config')
 POSITION_CONFIG_PATH = os.path.join(CONFIG_DIR, "positions.json")
 
 # デフォルトのマウスポジション設定
