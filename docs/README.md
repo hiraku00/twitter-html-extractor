@@ -14,6 +14,8 @@ Twitter/X の検索結果 HTML からツイート情報を自動抽出・整理�
 - 連続実行モードでマウスポジションを保存・再利用可能
 - 詳細なログ出力でデバッグをサポート
 
+補足: マウスポジションは `data/config/positions.json` に保存されます。TTY環境では実行時に「保存された位置を使用しますか？ [y/N]」が表示され、yで保存位置を使用、nで再取得します（非TTYでは自動で保存位置を使用）。
+
 ## インストール
 
 ```bash
@@ -48,6 +50,7 @@ pytest --cov=src tests/
 - スクリプト実行前に **Twitter の検索画面**（ https://twitter.com/search ）を開いておく
 - キーワードや日付条件（since/until 句）はスクリプトが自動で入力
 - スクリプトはこの検索画面上で自動的に検索クエリを入力し、Copy HTML 拡張ボタンを押下して HTML を取得
+ - マウスポジションはリポジトリ内 `data/config/positions.json` に保存・再利用されます（TTYでは実行時に使用可否を確認）
 
 ## 基本的な使い方
 
@@ -105,13 +108,13 @@ python main.py extract 250706 -k manekineko --verbose
 
 ```bash
 # 基本形
-python main.py --extract 250706
+python main.py extract 250706
 
 # キーワードタイプを指定
-python main.py --extract 250706 --keyword-type en
+python main.py extract 250706 --keyword-type en
 
 # 詳細表示モード
-python main.py --extract 250706 -v
+python main.py extract 250706 -v
 ```
 
 - 指定した日付のHTMLファイルからツイートを抽出
@@ -121,13 +124,13 @@ python main.py --extract 250706 -v
 
 ```bash
 # 基本形
-python main.py --merge
+python main.py merge
 
 # 特定のキーワードタイプのみマージ
-python main.py --merge --keyword-type chikirin
+python main.py merge --keyword-type chikirin
 
 # 詳細表示モード
-python main.py --merge -v
+python main.py merge -v
 ```
 
 - 抽出済みのテキストファイルを1つのCSVに結合
@@ -144,35 +147,31 @@ python main.py --merge -v
 例：
 ```bash
 # 以下の3つはすべて同じ意味
-python main.py --html 250803 --keyword-type chikirin
-python main.py --html 250803 --k chikirin
-python main.py --html 250803 -k chikirin
+python main.py html 250803 --keyword-type chikirin
+python main.py html 250803 --k chikirin
+python main.py html 250803 -k chikirin
 ```
 
 ### 一括実行（HTML作成 + 抽出）
 
 ```bash
 # 基本形
-python main.py --all 250706
+python main.py all 250706
 
 # 日付指定なし（クリップボードから日時を取得）
-python main.py --all --no-date
+python main.py all --no-date
 
 # カスタム検索キーワードを指定
-python main.py --all 250706 --search-keyword "from:example"
+python main.py all 250706 --search-keyword "from:example"
 
 # キーワードタイプを指定
-python main.py --all 250706 -k chikirin
-
-# 最新のHTMLファイルを使用（日付自動検出）
-python main.py --all latest
+python main.py all 250706 -k chikirin
 ```
 
-- `--all` コマンドはHTML作成と抽出を一括で実行
+- `all` サブコマンドはHTML作成と抽出を一括で実行
 - `--no-date` と併用すると、クリップボードから `until:YYYY-MM-DD_HH:MM:SS_JST` 形式の日時を取得
-- `latest` を指定すると、最新のHTMLファイルを自動検出して使用
 - HTMLの作成とツイート抽出を一括で実行
-- 個別に `--html` と `--extract` を実行するのと同じ
+- 個別に `html` と `extract` を実行するのと同じ
 
 ### 連続実行モード
 
@@ -195,6 +194,7 @@ python main.py all 250901 -k chikirin -c 10
 **注意**: 
 - ブラウザのレイアウトや解像度を変更した場合は、再度 `--continuous` フラグを指定してマウスポジションを再設定してください。
 - `回数` パラメーターは必ず指定してください。
+ - マウスポジションは `data/config/positions.json` に保存されます。TTYでは都度「保存された位置を使用しますか？ [y/N]」の確認があり、yで保存位置を使用します。
 
 ### キーワード指定オプション
 
@@ -353,11 +353,11 @@ twitter-html-extractor/
 ├── src/                          # ソースコード
 │   ├── extract_tweets_from_html.py
 │   ├── merge_all_txt_to_csv.py
-│   └── create_twitter_html_auto.py
+│   └── create_twitter_html_all.py
 ├── data/                         # データフォルダ
 │   ├── input/                    # 入力ファイル（スクリプトで自動生成）
 │   │   └── chikirin/            # chikirinキーワード用専用フォルダ
-│   └── output/                   # 出力ファイル
+│   ├── output/                   # 出力ファイル
 │       ├── txt/                  # テキストファイル
 │       ├── json/                 # JSONファイル
 │       ├── csv/                  # CSVファイル
@@ -365,6 +365,8 @@ twitter-html-extractor/
 │           ├── txt/              # テキストファイル
 │           ├── json/             # JSONファイル
 │           └── csv/              # CSVファイル
+│   └── config/                   # 設定（マウスポジションなど）
+│       └── positions.json        # 保存されたマウスポジション
 ├── docs/                         # ドキュメント
 │   └── README.md
 ├── tests/                        # テストファイル
