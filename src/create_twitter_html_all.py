@@ -45,7 +45,7 @@ def save_positions(positions):
         return False
 
 def load_positions():
-    """保存されたマウスポジションを読み込む"""
+    """保存されたマウスポジションを読み込む（リポジトリ内 data/config/positions.json のみ）"""
     try:
         if os.path.exists(config.POSITION_CONFIG_PATH):
             with open(config.POSITION_CONFIG_PATH, 'r') as f:
@@ -426,8 +426,39 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
     print("位置設定を開始します...\n")
     # 各位置を取得
     print("== 位置設定 ==")
-    # 連続実行モードの場合は保存された位置を使用
+    # まず保存済み位置があるか確認
+    positions_for_check = load_positions()
+    has_saved_positions = (
+        positions_for_check.get('search_box', {}).get('x', 0) > 0 and
+        positions_for_check.get('search_box', {}).get('y', 0) > 0 and
+        positions_for_check.get('extension_button', {}).get('x', 0) > 0 and
+        positions_for_check.get('extension_button', {}).get('y', 0) > 0
+    )
+
+    # デフォルトは連続モード指定時は保存位置使用
     use_saved = getattr(args, 'continuous', False) if hasattr(args, 'continuous') else False
+
+    # 保存済みがある場合のみ、利用可否を対話で確認（TTY環境のみ）
+    if has_saved_positions:
+        try:
+            if sys.stdin.isatty():
+                ans = input("保存された位置を使用しますか？ [y/N]: ").strip().lower()
+                if ans in ('y', 'yes'):  # yが指定されたら保存位置使用
+                    use_saved = True
+                elif ans in ('n', 'no'):
+                    use_saved = False
+                else:
+                    # 未入力やその他はデフォルトN
+                    use_saved = False
+            else:
+                # 非対話（テストなど）では自動で保存位置を使用
+                use_saved = True
+        except Exception:
+            # 何らかの理由で入力に失敗した場合は安全側（保存位置を使用）
+            use_saved = True
+    else:
+        # 保存がない場合は新規取得
+        use_saved = False
 
     search_box_pos = get_position(
         "検索ボックスの位置(✗ボタンの位置)にマウスを移動してください",
