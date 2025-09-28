@@ -25,6 +25,9 @@ data/output/*/csv/bk/*.csv
 # メモファイル
 memo.md
 
+# ローカル専用設定（マウスポジション）
+data/config/positions.json
+
 # Python関連
 __pycache__/
 *.py[cod]
