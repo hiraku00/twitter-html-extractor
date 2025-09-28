@@ -57,6 +57,9 @@ pytest --cov=src tests/
 ### 一括実行（推奨）
 
 ```bash
+# 日付省略（前日JSTを自動設定）
+python main.py all -k manekineko
+
 # 最新のツイートを取得（現在日時を使用）
 python main.py all --no-date -k manekineko
 
@@ -76,6 +79,9 @@ python main.py all 250831 -k manekineko -c 10
 # 基本形（日付指定）
 python main.py html 250706
 
+# 日付省略（前日JSTを自動設定）
+python main.py html -k chikirin
+
 # 日付指定なし（現在日時を使用）
 python main.py html --no-date
 
@@ -84,6 +90,7 @@ python main.py html 250706 -k chikirin
 ```
 
 - 指定日（例: 2025/07/06）の 0:00:00〜23:59:59 で検索
+- 日付未指定の場合は、前日（JST）の 0:00:00〜23:59:59 が自動設定されます
 - `--no-date` を指定すると、クリップボードから `until:YYYY-MM-DD_HH:MM:SS_JST` 形式の日時を取得
 - `--search-keyword` でカスタム検索キーワードを指定可能
 - `-k, --keyword-type` で事前に設定したキーワードタイプを指定可能
@@ -158,6 +165,9 @@ python main.py html 250803 -k chikirin
 # 基本形
 python main.py all 250706
 
+# 日付省略（前日JSTを自動設定）
+python main.py all -k manekineko
+
 # 日付指定なし（クリップボードから日時を取得）
 python main.py all --no-date
 
@@ -169,6 +179,7 @@ python main.py all 250706 -k chikirin
 ```
 
 - `all` サブコマンドはHTML作成と抽出を一括で実行
+- 日付未指定の場合は前日（JST）で実行
 - `--no-date` と併用すると、クリップボードから `until:YYYY-MM-DD_HH:MM:SS_JST` 形式の日時を取得
 - HTMLの作成とツイート抽出を一括で実行
 - 個別に `html` と `extract` を実行するのと同じ
@@ -305,6 +316,7 @@ python main.py html --no-date
 
 - **html コマンド**
   - `python main.py html <YYMMDD>`: 指定日付で検索・保存・抽出
+  - `python main.py html`: 日付省略時は前日（JST）で検索・保存・抽出
   - `python main.py html --no-date`: クリップボードの until 日時で検索・保存・抽出
   - `--keyword-type`, `--search-keyword` でキーワード指定可
 - **extract コマンド**
@@ -339,8 +351,8 @@ python main.py html --no-date
    - HTML ファイルの`datetime`属性を確認
    - タイムゾーン変換が正しく動作しているか確認
 4. **日付引数エラー**
-   - 日付は YYMMDD 形式（例：250706）で指定してください
-   - 通常の html コマンドでは日付引数が必須です
+   - 日付は YYMMDD 形式（例：250706）で指定できます
+   - 日付を省略すると、前日（JST）が自動的に設定されます（`html`/`all`）
 5. **--no-date オプションでエラー**
    - クリップボードに until 日時（until:YYYY-MM-DD_HH:MM:SS_JST 形式）が必要です
 
@@ -397,6 +409,7 @@ twitter-html-extractor/
 - エラーハンドリングを強化
 - 位置情報の保存/読み込み機能を追加
 - ログ出力を体系化し、デバッグを容易に
+- 日付未指定時に前日（JST）を自動設定（`html` / `all`）
 
 ### [1.0.0] - 2025-XX-XX
 
