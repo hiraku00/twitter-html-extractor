@@ -82,7 +82,7 @@ def get_position(prompt, position_name, test_mode=False, use_saved=False, args=N
 
     # 保存された位置を確認
     positions = load_positions()
-    
+
     # 保存された位置があり、有効な座標の場合
     if use_saved and positions[position_name]['x'] > 0 and positions[position_name]['y'] > 0:
         return {
@@ -123,7 +123,7 @@ def navigate_to_twitter_search(search_query, search_box_pos):
     pyautogui.click(search_box_pos['x'], search_box_pos['y'])
     pyperclip.copy(search_query)
     pyautogui.hotkey('command', 'v')
-    time.sleep(0.5)
+    time.sleep(0.2)
     pyautogui.press('enter')
     time.sleep(1)  # 検索結果が表示されるのを待つ
 
@@ -131,7 +131,7 @@ def copy_html_with_extension(extension_button_pos):
     """ブラウザ拡張ボタンを押してHTMLをクリップボードにコピー"""
     # 拡張ボタンをクリック
     pyautogui.click(extension_button_pos['x'], extension_button_pos['y'])
-    time.sleep(1)  # コピーが完了するのを待つ
+    time.sleep(0.5)  # コピーが完了するのを待つ
 
     # クリップボードからHTMLを取得
     import pyperclip
@@ -477,7 +477,7 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
     )
 
     print("\n=== 自動化開始 ===")
-    time.sleep(0.5)
+    time.sleep(0.2)
 
     try:
         # Twitterの検索を実行
@@ -486,7 +486,7 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
 
         # ページの読み込みを待機
         print("ページの読み込みを待機中...")
-        time.sleep(2)
+        time.sleep(0.5)
 
         # ブラウザ拡張ボタンでHTMLをコピー
         print("HTMLをコピー中...")
