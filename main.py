@@ -279,7 +279,22 @@ def parse_arguments(args=None):
     # 日付の検証
     if parsed_args.command in ['html', 'all'] and not no_date:
         if not hasattr(parsed_args, 'date') or parsed_args.date is None:
-            parser.error("エラー: 日付を指定するか、--no-date オプションを使用してください")
+            # 日付未指定の場合はJSTで前日をデフォルト設定 (YYMMDD)
+            try:
+                # JSTはUTC+9。日付のみ必要なため、素直にUTCに+9時間してからdate()を取得
+                now_jst = datetime.utcnow() + timedelta(hours=9)
+                yesterday_jst = now_jst.date() - timedelta(days=1)
+                auto_date = yesterday_jst.strftime("%y%m%d")
+                parsed_args.date = auto_date
+                # 詳細表示が有効なら通知
+                if hasattr(parsed_args, 'verbose') and parsed_args.verbose:
+                    print(f"INFO: 日付未指定のため前日を自動設定しました: {parsed_args.date} (JST)")
+            except Exception:
+                # フォールバック（ローカル時間の前日）
+                local_yesterday = (datetime.now() - timedelta(days=1)).strftime("%y%m%d")
+                parsed_args.date = local_yesterday
+                if hasattr(parsed_args, 'verbose') and parsed_args.verbose:
+                    print(f"INFO: 日付未指定のため前日(ローカル)を自動設定しました: {parsed_args.date}")
     
     # キーワードタイプを検証
     if not validate_keyword_type(parsed_args.keyword_type):
