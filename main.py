@@ -13,9 +13,11 @@ Twitter HTML Extractor メインプログラム
   python main.py all DATE [--keyword-type TYPE] [--verbose]
 
 例:
-  # HTML作成
-  python main.py html 250803
+  # HTML作成（単一キーワードタイプ）
   python main.py html 250803 --keyword-type chikirin
+  # HTML作成（複数キーワードタイプ）
+  python main.py html 250803 --keyword-type chikirin,thai
+  # HTML作成（日付指定なし）
   python main.py html --no-date --keyword-type thai
 """
 
@@ -148,8 +150,18 @@ def parse_arguments(args=None):
             if not hasattr(self, '_is_test'):
                 importlib.reload(config)
             current_choices = list(config.KEYWORD_PREFIX_MAPPING.keys())
-            if values not in current_choices:
-                raise argparse.ArgumentError(self, f"無効なキーワードタイプ: '{values}'. 有効な選択肢: {', '.join(map(repr, current_choices))}")
+
+            # カンマ区切りで複数のキーワードタイプを処理
+            if ',' in values:
+                keyword_types = [kt.strip() for kt in values.split(',')]
+            else:
+                keyword_types = [values]
+
+            # 全てのキーワードタイプが有効かチェック
+            for kt in keyword_types:
+                if kt not in current_choices:
+                    raise argparse.ArgumentError(self, f"無効なキーワードタイプ: '{kt}'. 有効な選択肢: {', '.join(map(repr, current_choices))}")
+
             setattr(namespace, self.dest, values)
     
     # ベースの引数を追加する関数
@@ -234,20 +246,32 @@ def parse_arguments(args=None):
     # カスタムヘルプメッセージ
     parser.epilog = """
 使用例:
-  # HTML作成
+  # HTML作成（単一キーワードタイプ）
   python main.py html 250701 --keyword-type chikirin
+
+  # HTML作成（複数キーワードタイプ）
+  python main.py html 250701 --keyword-type chikirin,thai
 
   # 日付指定なしでHTML作成
   python main.py html --no-date --search-keyword "検索キーワード"
 
-  # ツイート抽出
+  # ツイート抽出（単一キーワードタイプ）
   python main.py extract 250701 -k chikirin
 
-  # ファイル結合
+  # ツイート抽出（複数キーワードタイプ）
+  python main.py extract 250701 -k chikirin,thai
+
+  # ファイル結合（単一キーワードタイプ）
   python main.py merge --keyword-type chikirin
 
-  # 一括実行（作成 + 抽出）
+  # ファイル結合（複数キーワードタイプ）
+  python main.py merge --keyword-type chikirin,thai
+
+  # 一括実行（作成 + 抽出、単一キーワードタイプ）
   python main.py all 250827 -k chikirin
+
+  # 一括実行（作成 + 抽出、複数キーワードタイプ）
+  python main.py all 250827 -k chikirin,thai
 """
     
     # 引数をパース
@@ -305,12 +329,31 @@ def parse_arguments(args=None):
 
 
 def validate_keyword_type(keyword_type):
-    """キーワードタイプが有効か検証する"""
+    """キーワードタイプが有効か検証する
+
+    Args:
+        keyword_type: キーワードタイプ（単一またはカンマ区切りの複数）
+
+    Returns:
+        bool: 全てのキーワードタイプが有効な場合はTrue、そうでなければFalse
+    """
     try:
         # 設定を再読み込み
         config = reload_config()
         current_choices = list(config.KEYWORD_PREFIX_MAPPING.keys())
-        return keyword_type in current_choices
+
+        # カンマ区切りで複数のキーワードタイプを処理
+        if ',' in keyword_type:
+            keyword_types = [kt.strip() for kt in keyword_type.split(',')]
+        else:
+            keyword_types = [keyword_type]
+
+        # 全てのキーワードタイプが有効かチェック
+        for kt in keyword_types:
+            if kt not in current_choices:
+                return False
+
+        return True
     except Exception as e:
         print(f"エラー: キーワードタイプの検証中にエラーが発生しました: {str(e)}")
         return False
@@ -318,17 +361,17 @@ def validate_keyword_type(keyword_type):
 
 def run_html_command(args):
     """HTML作成コマンドを実行する
-    
+
     Args:
         args: コマンドライン引数
-        
+
     Returns:
-        bool: 成功した場合はTrue、失敗した場合はFalse
+        bool: 全てのキーワードタイプで成功した場合はTrue、失敗した場合はFalse
     """
     try:
         # --no-date が指定されているか確認
         no_date = hasattr(args, 'no_date') and args.no_date
-        
+
         # 日付の検証（--no-date でない場合）
         if not no_date:
             if not hasattr(args, 'date') or not args.date or not validate_date(args.date):
@@ -340,42 +383,63 @@ def run_html_command(args):
         else:
             date_str = None
 
-        # キーワードタイプの検証
-        if not validate_keyword_type(args.keyword_type):
-            return False
+        # キーワードタイプをリストに変換
+        if ',' in args.keyword_type:
+            keyword_types = [kt.strip() for kt in args.keyword_type.split(',')]
+        else:
+            keyword_types = [args.keyword_type]
 
-        # キーワードタイプを取得
-        keyword_type = args.keyword_type
-        
-        # 検索キーワードが指定されている場合は表示
-        if hasattr(args, 'search_keyword') and args.search_keyword:
-            if hasattr(args, 'verbose') and args.verbose:
-                print(f"カスタム検索キーワード: {args.search_keyword}")
+        # 各キーワードタイプで処理を実行
+        success = True
+        for keyword_type in keyword_types:
+            # キーワードタイプの検証
+            if not validate_keyword_type(keyword_type):
+                print(f"エラー: 無効なキーワードタイプ '{keyword_type}' です")
+                success = False
+                continue
 
-        # HTML作成を実行
-        # --no-date の場合は、date_strをNoneに設定して、create_twitter_html_all_main内で
-        # クリップボードから日付を取得するようにする
-        html_date_str = None if no_date else date_str
-        
-        # 必要な引数を準備
-        from src.create_twitter_html_all import main as create_twitter_html_all_main
-        
-        # 引数を渡してHTML作成を実行
-        kwargs = {
-            'date_str': html_date_str,
-            'search_keyword': args.search_keyword,
-            'keyword_type': keyword_type,
-            'verbose': args.verbose if hasattr(args, 'verbose') else False,
-            'use_date': not no_date,  # no_dateの逆を渡す
-            'test_mode': False,
-            'date_override': getattr(args, 'date_override', None),  # date_overrideがあれば使用
-            'continuous': False,
-            'search_box': getattr(args, 'search_box', None),
-            'extension_button': getattr(args, 'extension_button', None)
-        }
-            
-        create_twitter_html_all_main(**kwargs)
-        return True
+            # 検索キーワードが指定されている場合は表示
+            if hasattr(args, 'search_keyword') and args.search_keyword:
+                if hasattr(args, 'verbose') and args.verbose:
+                    print(f"キーワードタイプ '{keyword_type}' でカスタム検索キーワードを使用: {args.search_keyword}")
+            else:
+                if hasattr(args, 'verbose') and args.verbose:
+                    print(f"キーワードタイプ '{keyword_type}' で処理を実行します")
+
+            # HTML作成を実行
+            # --no-date の場合は、date_strをNoneに設定して、create_twitter_html_all_main内で
+            # クリップボードから日付を取得するようにする
+            html_date_str = None if no_date else date_str
+
+            # 必要な引数を準備
+            from src.create_twitter_html_all import main as create_twitter_html_all_main
+
+            # 引数を渡してHTML作成を実行
+            kwargs = {
+                'date_str': html_date_str,
+                'search_keyword': args.search_keyword,
+                'keyword_type': keyword_type,
+                'verbose': args.verbose if hasattr(args, 'verbose') else False,
+                'use_date': not no_date,  # no_dateの逆を渡す
+                'test_mode': False,
+                'date_override': getattr(args, 'date_override', None),  # date_overrideがあれば使用
+                'continuous': False,
+                'search_box': getattr(args, 'search_box', None),
+                'extension_button': getattr(args, 'extension_button', None)
+            }
+
+            try:
+                create_twitter_html_all_main(**kwargs)
+                if hasattr(args, 'verbose') and args.verbose:
+                    print(f"キーワードタイプ '{keyword_type}' のHTML作成が完了しました")
+            except Exception as e:
+                print(f"キーワードタイプ '{keyword_type}' のHTML作成中にエラーが発生しました: {e}")
+                if hasattr(args, 'verbose') and args.verbose:
+                    import traceback
+                    traceback.print_exc()
+                success = False
+
+        return success
     except Exception as e:
         print(f"HTML作成中にエラーが発生しました: {e}")
         if hasattr(args, 'verbose') and args.verbose:
@@ -385,28 +449,56 @@ def run_html_command(args):
 
 
 def run_merge_command(args):
-    """マージコマンドを実行する"""
-    if not validate_keyword_type(args.keyword_type):
-        return False
+    """マージコマンドを実行する
 
-    if hasattr(args, 'verbose') and args.verbose:
-        print(f"データを結合します: キーワードタイプ={args.keyword_type}")
+    Args:
+        args: コマンドライン引数
 
-    # マージを実行
-    merge_all_txt_to_csv(args.keyword_type)
-    return True
-    return True
+    Returns:
+        bool: 全てのキーワードタイプで成功した場合はTrue、失敗した場合はFalse
+    """
+    # キーワードタイプをリストに変換
+    if ',' in args.keyword_type:
+        keyword_types = [kt.strip() for kt in args.keyword_type.split(',')]
+    else:
+        keyword_types = [args.keyword_type]
+
+    # 各キーワードタイプで処理を実行
+    success = True
+    for keyword_type in keyword_types:
+        # キーワードタイプの検証
+        if not validate_keyword_type(keyword_type):
+            print(f"エラー: 無効なキーワードタイプ '{keyword_type}' です")
+            success = False
+            continue
+
+        if hasattr(args, 'verbose') and args.verbose:
+            print(f"キーワードタイプ '{keyword_type}' のデータを結合します")
+
+        try:
+            # マージを実行
+            merge_all_txt_to_csv(keyword_type)
+            if hasattr(args, 'verbose') and args.verbose:
+                print(f"キーワードタイプ '{keyword_type}' のデータ結合が完了しました")
+        except Exception as e:
+            print(f"キーワードタイプ '{keyword_type}' のデータ結合中にエラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+            success = False
+
+    return success
 
 
 def run_extract_command(args, test_mode=False):
     """抽出コマンドを実行する
-    
+
     Args:
         args: コマンドライン引数
         test_mode: テストモードかどうか
-        
+
     Returns:
-        bool: 成功した場合はTrue、失敗した場合はFalse
+        bool: 全てのキーワードタイプで成功した場合はTrue、失敗した場合はFalse
     """
     # --no-date が指定されていない場合のみ日付を検証
     if not getattr(args, 'no_date', False):
@@ -418,49 +510,33 @@ def run_extract_command(args, test_mode=False):
     else:
         date_str = None
 
-    if not validate_keyword_type(args.keyword_type):
-        return False
+    # キーワードタイプをリストに変換
+    if ',' in args.keyword_type:
+        keyword_types = [kt.strip() for kt in args.keyword_type.split(',')]
+    else:
+        keyword_types = [args.keyword_type]
 
-    if hasattr(args, 'verbose') and args.verbose:
-        print(f"ツイートを抽出します: 日付={date_str}, キーワードタイプ={args.keyword_type}")
+    # 各キーワードタイプで処理を実行
+    success = True
+    for keyword_type in keyword_types:
+        # キーワードタイプの検証
+        if not validate_keyword_type(keyword_type):
+            print(f"エラー: 無効なキーワードタイプ '{keyword_type}' です")
+            success = False
+            continue
 
-    # 一時的にコマンドライン引数を設定（後方互換性のため）
-    old_argv = sys.argv
-    try:
-        # 抽出を実行
-        from src.extract_tweets_from_html import main as extract_main
-        
-        # 抽出コマンドの引数を設定
-        cmd_args = ['extract_tweets_from_html.py']
-        
-        # 日付の指定方法を決定
-        if hasattr(args, 'no_date') and args.no_date:
-            # --no-date が指定されている場合は日付を指定しない
-            cmd_args.append('--no-date')
-        elif date_str:
-            # 通常は日付を指定
-            cmd_args.append(date_str)
-        
-        # キーワードタイプを指定
-        if hasattr(args, 'keyword_type') and args.keyword_type:
-            cmd_args.extend(['--keyword-type', args.keyword_type])
-            
-        # 詳細出力を指定
         if hasattr(args, 'verbose') and args.verbose:
-            cmd_args.append('--verbose')
-            
+            print(f"キーワードタイプ '{keyword_type}' でツイートを抽出します（日付={date_str}）")
+
+        # 一時的にコマンドライン引数を設定（後方互換性のため）
         old_argv = sys.argv
         try:
-            # 抽出コマンドを実行
-            if not test_mode:
-                print("\n=== 抽出コマンドを実行します ===")
-                
             # 抽出を実行
             from src.extract_tweets_from_html import main as extract_main
-            
+
             # 抽出コマンドの引数を設定
             cmd_args = ['extract_tweets_from_html.py']
-            
+
             # 日付の指定方法を決定
             if hasattr(args, 'no_date') and args.no_date:
                 # --no-date が指定されている場合は日付を指定しない
@@ -468,47 +544,38 @@ def run_extract_command(args, test_mode=False):
             elif date_str:
                 # 通常は日付を指定
                 cmd_args.append(date_str)
-            
+
             # キーワードタイプを指定
-            if hasattr(args, 'keyword_type') and args.keyword_type:
-                cmd_args.extend(['--keyword-type', args.keyword_type])
-                
+            if keyword_type:
+                cmd_args.extend(['--keyword-type', keyword_type])
+
             # 詳細出力を指定
             if hasattr(args, 'verbose') and args.verbose:
                 cmd_args.append('--verbose')
-                
+
             # 抽出を実行
             sys.argv = cmd_args
             extract_success = extract_main()
-            
-            if not extract_success:
-                error_msg = "抽出に失敗しました"
-                print(error_msg)
-                return False
 
-            if hasattr(args, 'verbose') and args.verbose:
-                print("\n抽出が完了しました。")
-                
-            return True
+            if not extract_success:
+                error_msg = f"キーワードタイプ '{keyword_type}' の抽出に失敗しました"
+                print(error_msg)
+                success = False
+            else:
+                if hasattr(args, 'verbose') and args.verbose:
+                    print(f"キーワードタイプ '{keyword_type}' の抽出が完了しました。")
+
+        except Exception as e:
+            error_msg = f"キーワードタイプ '{keyword_type}' の抽出中にエラーが発生しました: {e}"
+            if getattr(args, 'verbose', False):
+                import traceback
+                traceback.print_exc()
+            print(error_msg)
+            success = False
         finally:
             sys.argv = old_argv
-    except Exception as e:
-        error_msg = f"エラー: コマンドの実行中にエラーが発生しました: {e}"
-        if getattr(args, 'verbose', False):
-            import traceback
-            traceback.print_exc()
-        print(error_msg)
-        return False
-    except KeyboardInterrupt:
-        print("\n処理を中断しました")
-        sys.exit(1)
-    except Exception as e:
-        if 'args' in locals() and hasattr(args, 'verbose') and args.verbose:
-            import traceback
-            traceback.print_exc()
-        else:
-            print(f"エラー: {str(e)}")
-        sys.exit(1)
+
+    return success
 
 
 def main():
@@ -539,32 +606,159 @@ def main():
 
 def run_all_command(args, test_mode=False):
     """全てのコマンドを順番に実行する
-    
+
     Args:
         args: コマンドライン引数
         test_mode: テストモードかどうか
-        
+
     Returns:
         bool: 成功した場合はTrue、失敗した場合はFalse
     """
     # --continuous オプションが指定されている場合は連続実行モードを呼び出す
     if hasattr(args, 'continuous') and args.continuous:
         return run_continuous_mode(args, test_mode)
-        
+
     try:
-        # HTML作成
-        if not run_html_command(args):
-            print("HTMLの作成に失敗しました")
-            return False
-            
-        # 抽出
-        if not run_extract_command(args):
-            print("ツイートの抽出に失敗しました")
-            return False
-            
-        return True
+        # キーワードタイプをリストに変換
+        if ',' in args.keyword_type:
+            keyword_types = [kt.strip() for kt in args.keyword_type.split(',')]
+        else:
+            keyword_types = [args.keyword_type]
+
+        # マウスポジション設定を一度だけ行う
+        search_box_pos = None
+        extension_button_pos = None
+
+        # テストモードでない場合のみマウスポジションを取得
+        if not test_mode:
+            try:
+                import pyautogui
+                from src.create_twitter_html_all import load_positions, save_positions
+
+                # マウスポジション設定済みフラグを確認
+                positions_configured = config.load_mouse_positions_configured_flag()
+
+                # 保存された位置を確認
+                positions = load_positions()
+
+                # 保存された位置があり、有効な座標の場合は自動的に使用（ただし初回は確認）
+                if (positions.get('search_box', {}).get('x', 0) > 0 and
+                    positions.get('search_box', {}).get('y', 0) > 0 and
+                    positions.get('extension_button', {}).get('x', 0) > 0 and
+                    positions.get('extension_button', {}).get('y', 0) > 0):
+                    if positions_configured:
+                        # 設定済みフラグがある場合は自動的に使用
+                        search_box_pos = positions['search_box']
+                        extension_button_pos = positions['extension_button']
+                        print("マウスポジションが設定済みのため、保存された位置を自動的に使用します")
+                    else:
+                        # 初回の場合は確認を求める
+                        print("保存されたマウスポジションが見つかりました")
+                        try:
+                            if sys.stdin.isatty():
+                                ans = input("保存された位置を使用しますか？ [Y/n]: ").strip().lower()
+                                if ans in ('n', 'no'):
+                                    # 新しい位置を設定
+                                    print("新しい位置を設定します。")
+                                    print("\n=== 位置設定 ===")
+                                    print("検索ボックス(✗ボタンの位置)にマウスを移動させて、Enterキーを押してください...")
+                                    input("準備ができたらEnterキーを押してください...")
+                                    search_box_pos = {'x': pyautogui.position().x, 'y': pyautogui.position().y}
+                                    print(f"検索ボックスの位置を記録しました: {search_box_pos}")
+
+                                    print("\nブラウザ拡張ボタンにマウスを移動させて、Enterキーを押してください...")
+                                    input("準備ができたらEnterキーを押してください...")
+                                    extension_button_pos = {'x': pyautogui.position().x, 'y': pyautogui.position().y}
+                                    print(f"拡張ボタンの位置を記録しました: {extension_button_pos}")
+
+                                    # 設定済みフラグを保存
+                                    config.save_mouse_positions_configured_flag(True)
+                                else:
+                                    # 保存された位置を使用
+                                    search_box_pos = positions['search_box']
+                                    extension_button_pos = positions['extension_button']
+                                    config.save_mouse_positions_configured_flag(True)
+                            else:
+                                # 非対話環境では自動で保存位置を使用
+                                search_box_pos = positions['search_box']
+                                extension_button_pos = positions['extension_button']
+                                config.save_mouse_positions_configured_flag(True)
+                        except Exception:
+                            # エラーの場合は保存位置を使用
+                            search_box_pos = positions['search_box']
+                            extension_button_pos = positions['extension_button']
+                            config.save_mouse_positions_configured_flag(True)
+                else:
+                    # 保存位置がない場合は新規設定
+                    print("保存されている位置情報が見つかりませんでした。新しい位置を設定します。")
+
+                    # 位置情報を取得
+                    print("\n=== 位置設定 ===")
+                    print("検索ボックス(✗ボタンの位置)にマウスを移動させて、Enterキーを押してください...")
+                    input("準備ができたらEnterキーを押してください...")
+                    search_box_pos = {'x': pyautogui.position().x, 'y': pyautogui.position().y}
+                    print(f"検索ボックスの位置を記録しました: {search_box_pos}")
+
+                    print("\nブラウザ拡張ボタンにマウスを移動させて、Enterキーを押してください...")
+                    input("準備ができたらEnterキーを押してください...")
+                    extension_button_pos = {'x': pyautogui.position().x, 'y': pyautogui.position().y}
+                    print(f"拡張ボタンの位置を記録しました: {extension_button_pos}")
+
+                    # 位置と設定済みフラグを保存
+                    positions = {
+                        'search_box': search_box_pos,
+                        'extension_button': extension_button_pos
+                    }
+                    save_positions(positions)
+                    config.save_mouse_positions_configured_flag(True)
+
+                # マウス位置をargsに設定
+                args.search_box = search_box_pos
+                args.extension_button = extension_button_pos
+
+            except ImportError:
+                print("警告: pyautoguiが利用できないため、デフォルトの位置情報を使用します")
+                search_box_pos = {'x': 0, 'y': 0}
+                extension_button_pos = {'x': 0, 'y': 0}
+            except Exception as e:
+                print(f"警告: 位置情報の取得中にエラーが発生しました: {e}")
+                search_box_pos = {'x': 0, 'y': 0}
+                extension_button_pos = {'x': 0, 'y': 0}
+
+        # 各キーワードタイプで処理を実行
+        success = True
+        for keyword_type in keyword_types:
+            print(f"\n--- キーワードタイプ '{keyword_type}' で処理を開始 ---")
+
+            # キーワードタイプの検証
+            if not validate_keyword_type(keyword_type):
+                print(f"エラー: 無効なキーワードタイプ '{keyword_type}' です")
+                success = False
+                continue
+
+            # 現在のargsオブジェクトをコピーしてキーワードタイプを更新
+            current_args = argparse.Namespace(**vars(args))
+            current_args.keyword_type = keyword_type
+
+            # HTML作成
+            print(f"\n=== キーワードタイプ '{keyword_type}' でHTML作成 ===")
+            if not run_html_command(current_args):
+                print(f"キーワードタイプ '{keyword_type}' のHTML作成に失敗しました")
+                success = False
+                continue
+
+            # 抽出
+            print(f"\n=== キーワードタイプ '{keyword_type}' で抽出 ===")
+            if not run_extract_command(current_args):
+                print(f"キーワードタイプ '{keyword_type}' の抽出に失敗しました")
+                success = False
+                continue
+
+            print(f"キーワードタイプ '{keyword_type}' の処理が完了しました")
+
+        return success
     except Exception as e:
-        error_msg = f"ツイートの抽出中にエラーが発生しました: {str(e)}"
+        error_msg = f"コマンド実行中にエラーが発生しました: {str(e)}"
         if hasattr(args, 'verbose') and args.verbose:
             print(error_msg)
             import traceback
@@ -679,29 +873,75 @@ def run_continuous_mode(args, test_mode=False, command='all'):
                         search_box=search_box_pos,
                         extension_button=extension_button_pos
                     )
-                    
-                    # 各コマンドを個別に実行
-                    success = True
-                    
-                    # 1. HTML作成
-                    if success and command == 'all':
-                        print("\n=== HTML作成 ===")
-                        success = run_html_command(new_args)
-                        if not success:
-                            print("HTMLの作成に失敗しました")
-                    
-                    # 2. ツイート抽出
-                    if success:
-                        print("\n=== ツイート抽出 ===")
-                        success = run_extract_command(new_args, test_mode=test_mode)
-                        if not success:
-                            print("ツイートの抽出に失敗しました")
-                    
-                    if success:
-                        success_count += 1
-                        print(f"\n成功: 現在の成功回数 {success_count}/{args.continuous}回")
+
+                    # 複数キーワードタイプを処理する場合の処理を追加
+                    if ',' in args.keyword_type:
+                        # 複数キーワードタイプの場合、各タイプに対して個別に処理を実行
+                        keyword_types = [kt.strip() for kt in args.keyword_type.split(',')]
+                        for keyword_type in keyword_types:
+                            print(f"\n--- キーワードタイプ '{keyword_type}' で処理開始 ---")
+
+                            # キーワードタイプを更新した新しいargsオブジェクトを作成
+                            keyword_args = argparse.Namespace(
+                                command=command,
+                                date=args.date,
+                                no_date=args.no_date,
+                                keyword_type=keyword_type,
+                                search_keyword=args.search_keyword,
+                                verbose=args.verbose,
+                                continuous=True,
+                                until=until_str,
+                                date_override=until_date,
+                                search_box=search_box_pos,
+                                extension_button=extension_button_pos
+                            )
+
+                            # 各コマンドを個別に実行
+                            cmd_success = True
+
+                            # 1. HTML作成
+                            if cmd_success and command == 'all':
+                                print(f"\n=== キーワードタイプ '{keyword_type}' でHTML作成 ===")
+                                cmd_success = run_html_command(keyword_args)
+                                if not cmd_success:
+                                    print(f"キーワードタイプ '{keyword_type}' のHTML作成に失敗しました")
+
+                            # 2. ツイート抽出
+                            if cmd_success:
+                                print(f"\n=== キーワードタイプ '{keyword_type}' で抽出 ===")
+                                cmd_success = run_extract_command(keyword_args, test_mode=test_mode)
+                                if not cmd_success:
+                                    print(f"キーワードタイプ '{keyword_type}' の抽出に失敗しました")
+
+                            if cmd_success:
+                                success_count += 1
+                                print(f"キーワードタイプ '{keyword_type}' の処理が完了しました")
+                            else:
+                                print(f"キーワードタイプ '{keyword_type}' の処理に失敗しました")
                     else:
-                        print(f"\n失敗: 現在の成功回数 {success_count}/{args.continuous}回")
+                        # 単一キーワードタイプの場合の従来の処理
+                        # 各コマンドを個別に実行
+                        success = True
+
+                        # 1. HTML作成
+                        if success and command == 'all':
+                            print("\n=== HTML作成 ===")
+                            success = run_html_command(new_args)
+                            if not success:
+                                print("HTMLの作成に失敗しました")
+
+                        # 2. ツイート抽出
+                        if success:
+                            print("\n=== ツイート抽出 ===")
+                            success = run_extract_command(new_args, test_mode=test_mode)
+                            if not success:
+                                print("ツイートの抽出に失敗しました")
+
+                        if success:
+                            success_count += 1
+                            print(f"\n成功: 現在の成功回数 {success_count}/{args.continuous}回")
+                        else:
+                            print(f"\n失敗: 現在の成功回数 {success_count}/{args.continuous}回")
                         
             except KeyboardInterrupt:
                 print("\n処理が中断されました")

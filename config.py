@@ -77,5 +77,24 @@ DEFAULT_POSITIONS = {
     'extension_button': {'x': 0, 'y': 0}  # 拡張ボタンの位置
 }
 
-# デバッグ設定
-DEBUG = False
+def save_mouse_positions_configured_flag(configured=True):
+    """マウスポジション設定済みフラグをファイルに保存する"""
+    try:
+        ensure_config_dir()
+        flag_path = os.path.join(CONFIG_DIR, "mouse_positions_configured.json")
+        with open(flag_path, 'w') as f:
+            json.dump({'configured': configured}, f)
+    except Exception as e:
+        print(f"警告: マウスポジション設定フラグの保存に失敗しました: {e}")
+
+def load_mouse_positions_configured_flag():
+    """マウスポジション設定済みフラグを読み込む"""
+    try:
+        flag_path = os.path.join(CONFIG_DIR, "mouse_positions_configured.json")
+        if os.path.exists(flag_path):
+            with open(flag_path, 'r') as f:
+                data = json.load(f)
+                return data.get('configured', False)
+    except Exception as e:
+        print(f"警告: マウスポジション設定フラグの読み込みに失敗しました: {e}")
+    return False

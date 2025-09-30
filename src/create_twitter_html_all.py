@@ -438,43 +438,80 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
     # デフォルトは連続モード指定時は保存位置使用
     use_saved = getattr(args, 'continuous', False) if hasattr(args, 'continuous') else False
 
-    # 保存済みがある場合のみ、利用可否を対話で確認（TTY環境のみ）
-    if has_saved_positions:
-        try:
-            if sys.stdin.isatty():
-                ans = input("保存された位置を使用しますか？ [y/N]: ").strip().lower()
-                if ans in ('y', 'yes'):  # yが指定されたら保存位置使用
-                    use_saved = True
-                elif ans in ('n', 'no'):
-                    use_saved = False
-                else:
-                    # 未入力やその他はデフォルトN
-                    use_saved = False
-            else:
-                # 非対話（テストなど）では自動で保存位置を使用
-                use_saved = True
-        except Exception:
-            # 何らかの理由で入力に失敗した場合は安全側（保存位置を使用）
-            use_saved = True
+    # argsオブジェクトにマウスポジション情報が既に設定されている場合はそれを使用
+    args_search_box = getattr(args, 'search_box', None)
+    args_extension_button = getattr(args, 'extension_button', None)
+
+    if args_search_box is not None and args_extension_button is not None:
+        # argsオブジェクトにマウスポジション情報が設定済みの場合はそれを使用
+        search_box_pos = args_search_box
+        extension_button_pos = args_extension_button
+        print("事前に設定されたマウスポジションを使用します")
     else:
-        # 保存がない場合は新規取得
-        use_saved = False
+        # マウスポジション設定済みフラグを確認
+        positions_configured = config.load_mouse_positions_configured_flag()
 
-    search_box_pos = get_position(
-        "検索ボックスの位置(✗ボタンの位置)にマウスを移動してください",
-        'search_box',
-        test_mode=test_mode,
-        use_saved=use_saved,
-        args=args
-    )
+        # 従来のマウスポジション設定ロジックを実行
+        print("位置設定を開始します...\n")
+        # 各位置を取得
+        print("== 位置設定 ==")
+        # まず保存済み位置があるか確認
+        positions_for_check = load_positions()
+        has_saved_positions = (
+            positions_for_check.get('search_box', {}).get('x', 0) > 0 and
+            positions_for_check.get('search_box', {}).get('y', 0) > 0 and
+            positions_for_check.get('extension_button', {}).get('x', 0) > 0 and
+            positions_for_check.get('extension_button', {}).get('y', 0) > 0
+        )
 
-    extension_button_pos = get_position(
-        "ブラウザ拡張ボタンの位置にマウスを移動してください",
-        'extension_button',
-        test_mode=test_mode,
-        use_saved=use_saved,
-        args=args
-    )
+        # 保存済みがある場合のみ、利用可否を対話で確認（TTY環境のみ）
+        if has_saved_positions and positions_configured:
+            # 設定済みフラグがある場合は自動的に保存位置を使用
+            use_saved = True
+            print("マウスポジションが設定済みのため、保存された位置を自動的に使用します")
+        elif has_saved_positions:
+            # 保存済みはあるが初回の場合は確認を求める
+            try:
+                if sys.stdin.isatty():
+                    ans = input("保存された位置を使用しますか？ [Y/n]: ").strip().lower()
+                    if ans in ('n', 'no'):
+                        use_saved = False
+                    else:
+                        # y, Y, または未入力の場合は保存位置を使用
+                        use_saved = True
+                        # 設定済みフラグを保存
+                        config.save_mouse_positions_configured_flag(True)
+                else:
+                    # 非対話（テストなど）では自動で保存位置を使用
+                    use_saved = True
+                    config.save_mouse_positions_configured_flag(True)
+            except Exception:
+                # 何らかの理由で入力に失敗した場合は安全側（保存位置を使用）
+                use_saved = True
+                config.save_mouse_positions_configured_flag(True)
+        else:
+            # 保存がない場合は新規取得
+            use_saved = False
+
+        search_box_pos = get_position(
+            "検索ボックスの位置(✗ボタンの位置)にマウスを移動してください",
+            'search_box',
+            test_mode=test_mode,
+            use_saved=use_saved,
+            args=args
+        )
+
+        extension_button_pos = get_position(
+            "ブラウザ拡張ボタンの位置にマウスを移動してください",
+            'extension_button',
+            test_mode=test_mode,
+            use_saved=use_saved,
+            args=args
+        )
+
+        # マウスポジション設定後に設定済みフラグを保存
+        if not use_saved:  # 新規設定の場合のみ
+            config.save_mouse_positions_configured_flag(True)
 
     print("\n=== 自動化開始 ===")
     time.sleep(0.2)
