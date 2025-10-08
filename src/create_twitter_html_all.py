@@ -122,7 +122,6 @@ def navigate_to_twitter_search(search_query, search_box_pos):
     import pyperclip
     pyautogui.click(search_box_pos['x'], search_box_pos['y'])
     pyperclip.copy(search_query)
-    time.sleep(0.2)
     pyautogui.hotkey('command', 'v')
     time.sleep(0.2)
     pyautogui.press('enter')
