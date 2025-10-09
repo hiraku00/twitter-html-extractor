@@ -216,6 +216,19 @@ def process_detail_pages(tweets_data, search_box_pos, extension_button_pos):
                 pass
 
     return complete_texts
+
+def save_html_to_file(html_content, date_str, keyword_type='default', search_keyword=None):
+    """HTMLコンテンツをファイルに保存する
+
+    Args:
+        html_content (str): 保存するHTMLコンテンツ
+        date_str (str): 日付文字列（'2025-07-09' または '250709' など）
+        keyword_type (str): キーワードタイプ（デフォルト: 'default'）
+        search_keyword (str): 検索キーワード
+
+    Returns:
+        str: 保存されたファイルのパス、失敗時はNone
+    """
     # date_str: '2025-07-09' または '250709' など
     if '-' in date_str:  # YYYY-MM-DD形式
         # 2025-07-10 -> 250710

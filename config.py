@@ -4,6 +4,9 @@
 検索キーワードやその他の設定を管理
 """
 
+import json
+import os
+
 # デフォルトの検索キーワード
 DEFAULT_SEARCH_KEYWORD = 'dtv ビザ'
 
