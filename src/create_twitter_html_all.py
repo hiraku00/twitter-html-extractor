@@ -138,7 +138,84 @@ def copy_html_with_extension(extension_button_pos):
     import pyperclip
     return pyperclip.paste()
 
-def save_html_to_file(html_content, date_str, keyword_type='default', search_keyword=None):
+def process_detail_pages(tweets_data, search_box_pos, extension_button_pos):
+    """「さらに表示」ボタンがあるツイートの詳細ページを処理
+
+    Args:
+        tweets_data: タイムラインから抽出されたツイートデータ
+        search_box_pos: 検索ボックスの位置情報
+        extension_button_pos: 拡張ボタンの位置情報
+
+    Returns:
+        dict: 詳細ページから取得した完全なテキストデータ {url: text}
+    """
+    import pyautogui
+    import time
+    import pyperclip
+    from bs4 import BeautifulSoup
+
+    complete_texts = {}
+
+    # 「さらに表示」ボタンがあるツイートのみ処理
+    show_more_tweets = [tweet for tweet in tweets_data if tweet.get('has_show_more', False)]
+
+    if not show_more_tweets:
+        print("「さらに表示」ボタンのあるツイートはありません")
+        return complete_texts
+
+    print(f"「さらに表示」ボタンのあるツイートを {len(show_more_tweets)} 件処理します")
+
+    for tweet in show_more_tweets:
+        tweet_url = tweet.get('quote_url')
+        if not tweet_url:
+            print(f"ツイートURLが見つからないためスキップ: {tweet.get('id', '不明')}")
+            continue
+
+        try:
+            print(f"\n詳細ページ処理中: {tweet_url}")
+
+            # 新しいタブを開く（Ctrl+T）
+            pyautogui.hotkey('command', 't')
+            time.sleep(1)
+
+            # URLをクリップボードにコピーして貼り付け
+            pyperclip.copy(tweet_url)
+            pyautogui.hotkey('command', 'v')
+            time.sleep(0.5)
+            pyautogui.press('enter')
+            time.sleep(2)  # ページ読み込み待機
+
+            # 詳細ページでHTMLをコピー
+            html_content = copy_html_with_extension(extension_button_pos)
+
+            if html_content:
+                # HTMLから完全なテキストを抽出
+                soup = BeautifulSoup(html_content, 'html.parser')
+                text_elements = soup.select('[data-testid="tweetText"] span')
+                if text_elements:
+                    complete_text = text_elements[0].get_text()
+                    complete_text = re.sub(r'\s+', ' ', complete_text).strip()
+                    complete_texts[tweet_url] = complete_text
+                    print(f"詳細ページからテキスト取得完了（{len(complete_text)}文字）")
+                else:
+                    print("詳細ページからテキスト要素が見つかりませんでした")
+            else:
+                print("詳細ページからHTMLの取得に失敗しました")
+
+            # 新しいタブを閉じる（Ctrl+W）
+            pyautogui.hotkey('command', 'w')
+            time.sleep(0.5)
+
+        except Exception as e:
+            print(f"詳細ページ処理中にエラー発生: {e}")
+            # エラー時はタブを閉じて続行
+            try:
+                pyautogui.hotkey('command', 'w')
+                time.sleep(0.5)
+            except:
+                pass
+
+    return complete_texts
     # date_str: '2025-07-09' または '250709' など
     if '-' in date_str:  # YYYY-MM-DD形式
         # 2025-07-10 -> 250710
@@ -535,6 +612,30 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
             filepath = save_html_to_file(html_content, date_str, keyword_type, search_keyword)
             if filepath:
                 print(f"HTMLファイルを保存しました: {filepath}")
+
+                # 「さらに表示」ボタンがあるツイートを処理
+                print("\n=== 「さらに表示」ボタン処理開始 ===")
+                try:
+                    # タイムラインからツイートデータを抽出して詳細ページ処理
+                    from src.extract_tweets_from_html import extract_tweets_from_html
+                    tweets_data = extract_tweets_from_html(filepath)
+
+                    if tweets_data:
+                        # 詳細ページ処理を実行
+                        complete_texts = process_detail_pages(tweets_data, search_box_pos, extension_button_pos)
+
+                        if complete_texts:
+                            print(f"\n詳細ページ処理完了: {len(complete_texts)}件の完全なテキストを取得しました")
+                        else:
+                            print("\n詳細ページ処理で完全なテキストが見つかりませんでした")
+                    else:
+                        print("タイムラインからツイートを抽出できませんでした")
+
+                except ImportError as e:
+                    print(f"抽出モジュールのインポートに失敗しました: {e}")
+                except Exception as e:
+                    print(f"詳細ページ処理中にエラーが発生しました: {e}")
+
                 return True
             else:
                 print("HTMLファイルの保存に失敗しました")

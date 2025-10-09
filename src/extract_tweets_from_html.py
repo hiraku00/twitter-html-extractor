@@ -106,24 +106,16 @@ def extract_tweets_from_html(html_file_path):
                     except:
                         tweet_data['datetime'] = datetime_attr
 
-            # ツイートURLを抽出（完全なURLに変換）
-            link_elements = tweet_element.select('a[href*="/status/"]')
-            for link in link_elements:
-                href = link.get('href')
-                if href and '/status/' in href:
-                    # 相対URLを完全なURLに変換
-                    if href.startswith('/'):
-                        tweet_data['quote_url'] = f"https://x.com{href}"
-                    elif href.startswith('http'):
-                        tweet_data['quote_url'] = href
-                    else:
-                        tweet_data['quote_url'] = f"https://x.com/{href}"
-                    break
+            # 「さらに表示」ボタンの有無をチェック
+            show_more_button = tweet_element.select_one('[data-testid="tweet-text-show-more-link"]')
+            tweet_data['has_show_more'] = show_more_button is not None
 
             # 有効なツイートのみ追加（テキストが存在する場合）
             if tweet_data['text']:
                 tweets.append(tweet_data)
-                print(f"ツイート {i+1}: {tweet_data['text'][:50]}... ユーザー: {tweet_data['user_name']}")
+                # 「さらに表示」ボタンの有無を表示
+                show_more_info = " [さらに表示あり]" if tweet_data.get('has_show_more', False) else ""
+                print(f"ツイート {i+1}: {tweet_data['text'][:50]}... ユーザー: {tweet_data['user_name']}{show_more_info}")
 
         except Exception as e:
             print(f"ツイート {i+1} の抽出でエラー: {e}")
@@ -190,6 +182,9 @@ def save_tweets_to_files(tweets, base_filename="extracted_tweets", keyword_type=
                 f.write(f"日時: {tweet['datetime']}\n")
             if tweet['quote_url']:
                 f.write(f"ツイートURL: {tweet['quote_url']}\n")
+            # 「さらに表示」ボタンの情報を追加
+            if tweet.get('has_show_more', False):
+                f.write("さらに表示ボタン: あり\n")
             # 箇条書きをフォーマット
             formatted_text = format_tweet_text(tweet['text'])
             f.write(f"{formatted_text}\n")
@@ -335,6 +330,9 @@ def main():
                 print(f"日時: {tweet['datetime']}")
             if tweet['quote_url']:
                 print(f"ツイートURL: {tweet['quote_url']}")
+            # 「さらに表示」ボタンの情報を追加
+            if tweet.get('has_show_more', False):
+                print("さらに表示ボタン: あり")
             formatted_text = format_tweet_text(tweet['text'])
             print(f"{formatted_text}")
             print("-" * 30)

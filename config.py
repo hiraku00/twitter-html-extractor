@@ -71,11 +71,10 @@ _PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIR = os.path.join(_PROJECT_ROOT, 'data', 'config')
 POSITION_CONFIG_PATH = os.path.join(CONFIG_DIR, "positions.json")
 
-# デフォルトのマウスポジション設定
-DEFAULT_POSITIONS = {
-    'search_box': {'x': 0, 'y': 0},  # 検索ボックスの位置
-    'extension_button': {'x': 0, 'y': 0}  # 拡張ボタンの位置
-}
+def ensure_config_dir():
+    """設定ディレクトリが存在することを確認し、なければ作成する"""
+    import os
+    os.makedirs(CONFIG_DIR, exist_ok=True)
 
 def save_mouse_positions_configured_flag(configured=True):
     """マウスポジション設定済みフラグをファイルに保存する"""
