@@ -549,6 +549,17 @@ def run_extract_command(args, test_mode=False):
             if keyword_type:
                 cmd_args.extend(['--keyword-type', keyword_type])
 
+            # 詳細ページ処理を有効化
+            cmd_args.append('--enable-detail-extraction')
+
+            # マウス位置情報を抽出コマンドに渡すために追加の引数を設定
+            if hasattr(args, 'search_box') and hasattr(args, 'extension_button'):
+                if args.search_box and args.extension_button:
+                    cmd_args.extend(['--search-box-x', str(args.search_box['x'])])
+                    cmd_args.extend(['--search-box-y', str(args.search_box['y'])])
+                    cmd_args.extend(['--extension-button-x', str(args.extension_button['x'])])
+                    cmd_args.extend(['--extension-button-y', str(args.extension_button['y'])])
+
             # 詳細出力を指定
             if hasattr(args, 'verbose') and args.verbose:
                 cmd_args.append('--verbose')
@@ -635,59 +646,55 @@ def run_all_command(args, test_mode=False):
                 import pyautogui
                 from src.create_twitter_html_all import load_positions, save_positions
 
-                # マウスポジション設定済みフラグを確認
-                positions_configured = config.load_mouse_positions_configured_flag()
-
-                # 保存された位置を確認
+                # 保存された位置を確認（設定フラグは使用せず、毎回確認を求める）
                 positions = load_positions()
 
-                # 保存された位置があり、有効な座標の場合は自動的に使用（ただし初回は確認）
+                # 保存された位置があり、有効な座標の場合は常に確認を求める
                 if (positions.get('search_box', {}).get('x', 0) > 0 and
                     positions.get('search_box', {}).get('y', 0) > 0 and
                     positions.get('extension_button', {}).get('x', 0) > 0 and
                     positions.get('extension_button', {}).get('y', 0) > 0):
-                    if positions_configured:
-                        # 設定済みフラグがある場合は自動的に使用
-                        search_box_pos = positions['search_box']
-                        extension_button_pos = positions['extension_button']
-                        print("マウスポジションが設定済みのため、保存された位置を自動的に使用します")
-                    else:
-                        # 初回の場合は確認を求める
-                        print("保存されたマウスポジションが見つかりました")
-                        try:
-                            if sys.stdin.isatty():
-                                ans = input("保存された位置を使用しますか？ [Y/n]: ").strip().lower()
-                                if ans in ('n', 'no'):
-                                    # 新しい位置を設定
-                                    print("新しい位置を設定します。")
-                                    print("\n=== 位置設定 ===")
-                                    print("検索ボックス(✗ボタンの位置)にマウスを移動させて、Enterキーを押してください...")
-                                    input("準備ができたらEnterキーを押してください...")
-                                    search_box_pos = {'x': pyautogui.position().x, 'y': pyautogui.position().y}
-                                    print(f"検索ボックスの位置を記録しました: {search_box_pos}")
+                    # 保存済み位置がある場合は常に確認を求める
+                    print("保存されたマウスポジションが見つかりました")
+                    try:
+                        if sys.stdin.isatty():
+                            ans = input("保存された位置を使用しますか？ [Y/n]: ").strip().lower()
+                            if ans in ('n', 'no'):
+                                # 新しい位置を設定
+                                print("新しい位置を設定します。")
+                                print("\n=== 位置設定 ===")
+                                print("検索ボックス(✗ボタンの位置)にマウスを移動させて、Enterキーを押してください...")
+                                input("準備ができたらEnterキーを押してください...")
+                                search_box_pos = {'x': pyautogui.position().x, 'y': pyautogui.position().y}
+                                print(f"検索ボックスの位置を記録しました: {search_box_pos}")
 
-                                    print("\nブラウザ拡張ボタンにマウスを移動させて、Enterキーを押してください...")
-                                    input("準備ができたらEnterキーを押してください...")
-                                    extension_button_pos = {'x': pyautogui.position().x, 'y': pyautogui.position().y}
-                                    print(f"拡張ボタンの位置を記録しました: {extension_button_pos}")
+                                print("\nブラウザ拡張ボタンにマウスを移動させて、Enterキーを押してください...")
+                                input("準備ができたらEnterキーを押してください...")
+                                extension_button_pos = {'x': pyautogui.position().x, 'y': pyautogui.position().y}
+                                print(f"拡張ボタンの位置を記録しました: {extension_button_pos}")
 
-                                    # 設定済みフラグを保存
-                                    config.save_mouse_positions_configured_flag(True)
-                                else:
-                                    # 保存された位置を使用
-                                    search_box_pos = positions['search_box']
-                                    extension_button_pos = positions['extension_button']
-                                    config.save_mouse_positions_configured_flag(True)
+                                # 新しい位置を記録
+                                positions = {
+                                    'search_box': search_box_pos,
+                                    'extension_button': extension_button_pos
+                                }
+                                save_positions(positions)
+                                print("新しいマウスポジションを保存しました。")
+                                # 設定済みフラグを保存（今回は保存せず、毎回確認するようにする）
+                                # config.save_mouse_positions_configured_flag(True)
                             else:
-                                # 非対話環境では自動で保存位置を使用
+                                # 保存された位置を使用
                                 search_box_pos = positions['search_box']
                                 extension_button_pos = positions['extension_button']
-                                config.save_mouse_positions_configured_flag(True)
-                        except Exception:
-                            # エラーの場合は保存位置を使用
+                                # 設定済みフラグを保存せず、毎回確認するようにする
+                        else:
+                            # 非対話環境では自動で保存位置を使用
                             search_box_pos = positions['search_box']
                             extension_button_pos = positions['extension_button']
-                            config.save_mouse_positions_configured_flag(True)
+                    except Exception:
+                        # エラーの場合は保存位置を使用
+                        search_box_pos = positions['search_box']
+                        extension_button_pos = positions['extension_button']
                 else:
                     # 保存位置がない場合は新規設定
                     print("保存されている位置情報が見つかりませんでした。新しい位置を設定します。")
@@ -704,13 +711,13 @@ def run_all_command(args, test_mode=False):
                     extension_button_pos = {'x': pyautogui.position().x, 'y': pyautogui.position().y}
                     print(f"拡張ボタンの位置を記録しました: {extension_button_pos}")
 
-                    # 位置と設定済みフラグを保存
+                    # 位置情報のみを保存（設定フラグは保存せず、毎回確認するようにする）
                     positions = {
                         'search_box': search_box_pos,
                         'extension_button': extension_button_pos
                     }
                     save_positions(positions)
-                    config.save_mouse_positions_configured_flag(True)
+                    # config.save_mouse_positions_configured_flag(True)  # 削除 - 毎回確認するようにする
 
                 # マウス位置をargsに設定
                 args.search_box = search_box_pos

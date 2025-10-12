@@ -11,6 +11,48 @@ import pyperclip
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import config
 
+def extract_tweet_url(tweet_element):
+    """ツイート要素からツイートURLを抽出"""
+    # 複数の方法でURLを抽出を試みる
+
+    # 方法1: ツイート内のリンクからstatusを含むURLを探す
+    all_links = tweet_element.select('a[href]')
+    for link in all_links:
+        href = link.get('href', '')
+        if href and ('/status/' in href or 'status/' in href):
+            # 相対URLの場合は絶対URLに変換
+            if href.startswith('/'):
+                return f"https://x.com{href}"
+            elif href.startswith('https://x.com/') or href.startswith('https://twitter.com/'):
+                return href
+
+    # 方法2: time要素の親からリンクを探す（タイムスタンプのリンク）
+    time_element = tweet_element.select_one('time')
+    if time_element:
+        # time要素の親を遡ってリンクを探す
+        parent = time_element.parent
+        for _ in range(3):  # 3レベルまで遡る
+            if parent and parent.name == 'a':
+                href = parent.get('href', '')
+                if href and ('/status/' in href or 'status/' in href):
+                    if href.startswith('/'):
+                        return f"https://x.com{href}"
+                    elif href.startswith('https://x.com/') or href.startswith('https://twitter.com/'):
+                        return href
+            parent = parent.parent if parent else None
+
+    # 方法3: ツイート全体からstatusを含む最初のリンクを探す
+    for link in all_links:
+        href = link.get('href', '')
+        if href and 'status' in href:
+            if href.startswith('/'):
+                return f"https://x.com{href}"
+            elif href.startswith('http'):
+                return href
+
+    # URLが見つからない場合
+    return ""
+
 def extract_tweets_from_html(html_file_path):
     """HTMLファイルからツイートデータを抽出"""
 
@@ -110,6 +152,9 @@ def extract_tweets_from_html(html_file_path):
             show_more_button = tweet_element.select_one('[data-testid="tweet-text-show-more-link"]')
             tweet_data['has_show_more'] = show_more_button is not None
 
+            # ツイートURLを抽出
+            tweet_data['quote_url'] = extract_tweet_url(tweet_element)
+
             # 有効なツイートのみ追加（テキストが存在する場合）
             if tweet_data['text']:
                 tweets.append(tweet_data)
@@ -120,6 +165,131 @@ def extract_tweets_from_html(html_file_path):
         except Exception as e:
             print(f"ツイート {i+1} の抽出でエラー: {e}")
             continue
+
+    return tweets
+
+def extract_tweets_from_html_with_detail_pages(html_file_path, search_box_pos=None, extension_button_pos=None, date_str=None, keyword_type='default'):
+    """HTMLファイルからツイートデータを抽出し、詳細ページ処理も実行する
+
+    Args:
+        html_file_path (str): HTMLファイルのパス
+        search_box_pos (dict): 検索ボックスの位置情報（詳細ページ処理用）
+        extension_button_pos (dict): 拡張ボタンの位置情報（詳細ページ処理用）
+        date_str (str): 日付文字列（詳細ページ処理用）
+        keyword_type (str): キーワードタイプ（詳細ページ処理用）
+
+    Returns:
+        list: 統合されたツイートデータ
+    """
+    # HTMLファイルを読み込み
+    with open(html_file_path, 'r', encoding='utf-8') as f:
+        html_content = f.read()
+
+    # BeautifulSoupでパース
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    tweets = []
+
+    # ツイート要素を探す
+    tweet_selectors = [
+        'article[data-testid="tweet"]',
+        'div[data-testid="tweet"]',
+        'article',
+        'div[role="article"]'
+    ]
+
+    for selector in tweet_selectors:
+        tweet_elements = soup.select(selector)
+        if tweet_elements:
+            print(f"セレクタ '{selector}' で {len(tweet_elements)} 件のツイート要素を発見")
+            break
+
+    if not tweet_elements:
+        print("ツイート要素が見つかりませんでした。HTMLの構造を確認します...")
+        return []
+
+    for i, tweet_element in enumerate(tweet_elements):
+        tweet_data = {
+            'id': i + 1,
+            'text': '',
+            'datetime': '',
+            'quote_url': '',
+            'user_name': '',
+            'raw_html': str(tweet_element)[:500]
+        }
+
+        try:
+            # ユーザー名を抽出
+            user_name_elem = tweet_element.select_one('[data-testid="User-Name"] span')
+            if user_name_elem:
+                tweet_data['user_name'] = user_name_elem.get_text().strip()
+
+            # ツイートテキストを抽出
+            text_elements = tweet_element.select('[data-testid="tweetText"]')
+            if text_elements:
+                text = text_elements[0].get_text()
+                link_tags = text_elements[0].select('a[href^="http"]')
+                links = [a.get('href') for a in link_tags if a.get('href')]
+                tco_links = [a.get('href') for a in tweet_element.select('a[href^="https://t.co/"]') if a.get('href')]
+                all_links = []
+                for l in links + tco_links:
+                    if l and l not in text and l not in all_links:
+                        all_links.append(l)
+                if all_links:
+                    text = text.strip() + ' ' + ' '.join(all_links)
+                text = re.sub(r'\s+', ' ', text).strip()
+                tweet_data['text'] = text
+            else:
+                text_spans = tweet_element.select('span[dir="auto"]')
+                for span in text_spans:
+                    text = span.get_text()
+                    text = re.sub(r'\s+', ' ', text).strip()
+                    if len(text) > 10 and not text.startswith('@') and not text.startswith('#'):
+                        tweet_data['text'] = text
+                        break
+
+            # 日時を抽出
+            time_elements = tweet_element.select('time')
+            if time_elements:
+                datetime_attr = time_elements[0].get('datetime')
+                if datetime_attr:
+                    try:
+                        dt = datetime.fromisoformat(datetime_attr.replace('Z', '+00:00'))
+                        jst = timezone(timedelta(hours=9))
+                        dt_jst = dt.astimezone(jst)
+                        tweet_data['datetime'] = dt_jst.strftime('%Y/%m/%d %H:%M:%S')
+                    except:
+                        tweet_data['datetime'] = datetime_attr
+
+            # 「さらに表示」ボタンの有無をチェック
+            show_more_button = tweet_element.select_one('[data-testid="tweet-text-show-more-link"]')
+            tweet_data['has_show_more'] = show_more_button is not None
+
+            # ツイートURLを抽出
+            tweet_data['quote_url'] = extract_tweet_url(tweet_element)
+
+            if tweet_data['text']:
+                tweets.append(tweet_data)
+
+        except Exception as e:
+            print(f"ツイート {i+1} の抽出でエラー: {e}")
+            continue
+
+    # 詳細ページ処理を実行（必要な情報が揃っている場合）
+    complete_texts = {}
+    if search_box_pos and extension_button_pos:
+        try:
+            from src.create_twitter_html_all import process_detail_pages
+            complete_texts = process_detail_pages(tweets, search_box_pos, extension_button_pos, date_str, keyword_type)
+        except Exception as e:
+            print(f"詳細ページ処理でエラー: {e}")
+
+    # 詳細ページの結果を統合
+    for tweet in tweets:
+        tweet_url = tweet.get('quote_url')
+        if tweet_url and tweet_url in complete_texts:
+            tweet['text'] = complete_texts[tweet_url]
+            tweet['is_complete'] = True
 
     return tweets
 
@@ -207,10 +377,13 @@ def main():
     parser.add_argument('--keyword-type', '-k', help='キーワードタイプ (default, thai, en, chikirin, custom, manekineko)', default='default')
     parser.add_argument('--no-date', action='store_true', help='最新のHTMLファイルを使用する（日付指定なし）')
     parser.add_argument('--verbose', '-v', action='store_true', help='詳細な出力を有効化')
+    parser.add_argument('--enable-detail-extraction', action='store_true', help='詳細ページからのHTML取得・保存を有効化')
+    parser.add_argument('--search-box-x', type=int, help='検索ボックスのX座標')
+    parser.add_argument('--search-box-y', type=int, help='検索ボックスのY座標')
+    parser.add_argument('--extension-button-x', type=int, help='拡張ボタンのX座標')
+    parser.add_argument('--extension-button-y', type=int, help='拡張ボタンのY座標')
 
     args = parser.parse_args()
-
-    # HTMLファイルの場所を検索
     html_file = None
     prefix = None
 
@@ -308,10 +481,25 @@ def main():
         os.makedirs(json_output_folder)
         print(f"出力フォルダ '{json_output_folder}' を作成しました。")
 
+    # 詳細ページ処理用の変数初期化
+    search_box_pos = None
+    extension_button_pos = None
+    enable_detail_extraction = args.enable_detail_extraction
+
+    # マウス位置情報が指定されている場合
+    if (args.search_box_x and args.search_box_y and args.extension_button_x and args.extension_button_y):
+        search_box_pos = {'x': args.search_box_x, 'y': args.search_box_y}
+        extension_button_pos = {'x': args.extension_button_x, 'y': args.extension_button_y}
+        print(f"マウス位置情報が指定されました: search_box=({args.search_box_x}, {args.search_box_y}), extension_button=({args.extension_button_x}, {args.extension_button_y})")
+    elif enable_detail_extraction:
+        print("警告: 詳細ページ処理が有効ですが、マウス位置情報が指定されていません")
+        print("マウス位置情報を指定するか、--enable-detail-extractionを無効にしてください")
+        return False
+
     print(f"{html_file} からツイートを抽出しています...")
 
-    # ツイートを抽出
-    tweets = extract_tweets_from_html(html_file)
+    # 統合された抽出処理を実行（マウス位置情報を渡す）
+    tweets = extract_tweets_from_html_with_detail_pages(html_file, search_box_pos, extension_button_pos, output_filename, args.keyword_type)
 
     if tweets:
         print(f"\n抽出完了: {len(tweets)} 件のツイートを抽出しました")
@@ -333,6 +521,8 @@ def main():
             # 「さらに表示」ボタンの情報を追加
             if tweet.get('has_show_more', False):
                 print("さらに表示ボタン: あり")
+            if tweet.get('is_complete', False):
+                print("完全なテキスト: あり")
             formatted_text = format_tweet_text(tweet['text'])
             print(f"{formatted_text}")
             print("-" * 30)

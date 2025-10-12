@@ -11,7 +11,8 @@ import pyperclip
 import sys
 import os
 import json
-import re
+import re  # ← これを追加
+from pathlib import Path
 from datetime import datetime
 import argparse
 
@@ -104,6 +105,30 @@ def get_position(prompt, position_name, test_mode=False, use_saved=False, args=N
 
     return {'x': position.x, 'y': position.y}
 
+def click_with_tolerance(x, y, tolerance=5, clicks=1):
+    """指定座標の周囲を許容範囲内でクリックする
+
+def click_with_tolerance(x, y, tolerance=10, clicks=1):
+    """指定座標の周囲を許容範囲内でクリックする
+
+    Args:
+        x (int): クリックするX座標
+        y (int): クリックするY座標
+        tolerance (int): 許容範囲のピクセル数（デフォルト: 10）
+        clicks (int): クリック回数（デフォルト: 1）
+    """
+    # メイン座標でクリック
+    pyautogui.click(x, y, clicks=clicks)
+    time.sleep(0.1)
+
+    # 許容範囲内で追加クリック（より確実にするため）
+    for dx in [-tolerance, 0, tolerance]:
+        for dy in [-tolerance, 0, tolerance]:
+            if dx == 0 and dy == 0:
+                continue  # メイン座標は既にクリック済み
+            pyautogui.click(x + dx, y + dy, clicks=clicks)
+            time.sleep(0.05)
+
 def navigate_to_twitter_search(search_query, search_box_pos):
     """Twitterの検索ボックスに検索クエリを入力する
 
@@ -112,16 +137,14 @@ def navigate_to_twitter_search(search_query, search_box_pos):
         search_box_pos (dict): 検索ボックスと×ボタンの座標 {'x': int, 'y': int}
     """
     # 検索ボックスをクリックしてフォーカス
-    pyautogui.click(search_box_pos['x'], search_box_pos['y'])
-    time.sleep(0.2)
-    # ×ボタンをクリックして検索をクリア
-    pyautogui.click(search_box_pos['x'], search_box_pos['y'])
+    click_with_tolerance(search_box_pos['x'], search_box_pos['y'])
     time.sleep(0.2)
 
     # 検索クエリをクリップボードにコピーして貼り付け
-    pyautogui.click(search_box_pos['x'], search_box_pos['y'])
+    import pyperclip
+    click_with_tolerance(search_box_pos['x'], search_box_pos['y'])
     pyperclip.copy(search_query)
-    time.sleep(0.4)
+    time.sleep(0.2)
     pyautogui.hotkey('command', 'v')
     time.sleep(0.2)
     pyautogui.press('enter')
@@ -129,39 +152,50 @@ def navigate_to_twitter_search(search_query, search_box_pos):
 
 def copy_html_with_extension(extension_button_pos):
     """ブラウザ拡張ボタンを押してHTMLをクリップボードにコピー"""
+    # 拡張ボタンを広範囲でクリック（HTMLボタンはずれやすいため）
     x, y = extension_button_pos['x'], extension_button_pos['y']
 
-    # クリック前に少し待機
-    time.sleep(0.2)
+    # より広範囲を試す（特にx軸方向）
+    ranges_x = [0, -15, 15, -30, 30, -45, 45]
+    ranges_y = [-5, 0, 5]
 
-    # 拡張ボタンをクリック
-    pyautogui.click(x, y)
-    print(f"拡張ボタンクリック位置: ({x}, {y})")
+    for dx in ranges_x:
+        for dy in ranges_y:
+            try:
+                pyautogui.click(x + dx, y + dy)
+                print(f"拡張ボタンクリック試行: ({x + dx}, {y + dy})")
+                time.sleep(0.3)  # 少し長めに待つ
+            except Exception as e:
+                print(f"クリック失敗: {e}")
+
     time.sleep(0.8)  # コピーが完了するのを待つ
 
     # クリップボードからHTMLを取得
+    import pyperclip
     html_content = pyperclip.paste()
 
-    # HTMLの内容を検証
-    if not html_content or len(html_content) < 500:
-        print("エラー: HTMLの取得に失敗しました。拡張ボタンの位置を確認してください。")
-        return None
+    if not html_content or len(html_content) < 100:
+        print("警告: HTMLの取得に失敗した可能性があります。再試行します...")
+        # さらに広範囲で再試行
+        for dx in [-60, -45, -30, -15, 0, 15, 30, 45, 60]:
+            for dy in [-10, -5, 0, 5, 10]:
+                try:
+                    pyautogui.click(x + dx, y + dy)
+                    time.sleep(0.2)
+                except:
+                    pass
+
+        time.sleep(1.0)
+        html_content = pyperclip.paste()
 
     return html_content
 
-def process_detail_pages(tweets_data, search_box_pos, extension_button_pos, date_str, keyword_type='default'):
-    """「さらに表示」ボタンがあるツイートの詳細ページを処理
+def process_detail_pages(tweets_data, search_box_pos, extension_button_pos, date_str, keyword_type):
+    import pyautogui
+    import time
+    import pyperclip
+    from bs4 import BeautifulSoup
 
-    Args:
-        tweets_data: タイムラインから抽出されたツイートデータ
-        search_box_pos: 検索ボックスの位置情報
-        extension_button_pos: 拡張ボタンの位置情報
-        date_str: 日付文字列
-        keyword_type: キーワードタイプ
-
-    Returns:
-        dict: 詳細ページから取得した完全なテキストデータ {url: text}
-    """
     complete_texts = {}
 
     # 「さらに表示」ボタンがあるツイートのみ処理
@@ -186,12 +220,19 @@ def process_detail_pages(tweets_data, search_box_pos, extension_button_pos, date
             pyautogui.hotkey('command', 't')
             time.sleep(1)
 
+            # アドレスバーにフォーカスを当てる（Ctrl+L）
+            pyautogui.hotkey('command', 'l')
+            time.sleep(0.5)
+
             # URLをクリップボードにコピーして貼り付け
             pyperclip.copy(tweet_url)
             pyautogui.hotkey('command', 'v')
             time.sleep(0.5)
+
+            # Enterキーを押してページ遷移
             pyautogui.press('enter')
-            time.sleep(3)  # ページ読み込み待機
+            print("詳細ページを開いています...")
+            time.sleep(4)  # ページ読み込み待機を長めに
 
             # 詳細ページでHTMLをコピー
             html_content = copy_html_with_extension(extension_button_pos)
@@ -201,20 +242,19 @@ def process_detail_pages(tweets_data, search_box_pos, extension_button_pos, date
                 soup = BeautifulSoup(html_content, 'html.parser')
                 text_elements = soup.select('[data-testid="tweetText"] span')
                 if text_elements:
-                    # 本来のツイート内容は最初の要素のみを使用
                     complete_text = text_elements[0].get_text()
                     complete_text = re.sub(r'\s+', ' ', complete_text).strip()
-                    print(f"詳細ページからテキスト取得完了（{len(complete_text)}文字）")
                     complete_texts[tweet_url] = complete_text
+                    print(f"詳細ページからテキスト取得完了（{len(complete_text)}文字）")
 
-                    # 詳細ページのHTMLも保存
-                    detail_html_path = save_detail_html_to_file(html_content, tweet_url, date_str, keyword_type)
-                    if detail_html_path:
-                        print(f"詳細ページのHTMLを保存しました: {detail_html_path}")
+                    # 詳細ページのHTMLを保存（デバッグ用）
+                    detail_filepath = save_detail_html_to_file(html_content, tweet_url, date_str, keyword_type)
                 else:
                     print("詳細ページからテキスト要素が見つかりませんでした")
+                    print("HTMLの内容プレビュー:", html_content[:200])  # デバッグ用
             else:
                 print("詳細ページからHTMLの取得に失敗しました")
+                print("拡張ボタンの位置を確認してください")
 
             # 新しいタブを閉じる（Ctrl+W）
             pyautogui.hotkey('command', 'w')
@@ -236,56 +276,54 @@ def save_detail_html_to_file(html_content, tweet_url, date_str, keyword_type='de
 
     Args:
         html_content (str): 保存するHTMLコンテンツ
-        tweet_url (str): ツイートURL（ファイル名用に使用）
+        tweet_url (str): ツイートのURL
         date_str (str): 日付文字列
-        keyword_type (str): キーワードタイプ（デフォルト: 'default'）
+        keyword_type (str): キーワードタイプ
 
     Returns:
         str: 保存されたファイルのパス、失敗時はNone
     """
-    # date_str: '2025-07-09' または '250709' など
-    if '-' in date_str:  # YYYY-MM-DD形式
-        # 2025-07-10 -> 250710
+    # URLからツイートIDを抽出
+    tweet_id = tweet_url.split('/')[-1] if '/' in tweet_url else 'unknown'
+
+    # 日付文字列からYYMMDD形式を生成
+    if '-' in date_str:
         parts = date_str.split('-')
         if len(parts) == 3:
             year = parts[0]
             month = parts[1]
             day = parts[2]
-            yymmdd = f"{year[2:]}{month}{day}"  # 2025 -> 25, 07, 10 -> 250710
+            yymmdd = f"{year[2:]}{month}{day}"
         else:
-            print(f"エラー: 不正な日付形式です: {date_str}")
-            return None
-    elif len(date_str) == 6:  # YYMMDD形式
-        yymmdd = date_str  # そのまま使用
+            yymmdd = datetime.now().strftime('%y%m%d')
+    elif len(date_str) == 6:
+        yymmdd = date_str
     else:
-        print(f"エラー: 不正な日付形式です: {date_str}")
+        yymmdd = datetime.now().strftime('%y%m%d')
+
+    # 出力先ディレクトリを決定
+    prefix = config.KEYWORD_PREFIX_MAPPING.get(keyword_type, '')
+    if prefix and keyword_type != 'default':
+        output_dir = os.path.join(config.INPUT_FOLDER, prefix, 'detail')
+    else:
+        output_dir = os.path.join(config.INPUT_FOLDER, 'detail')
+
+    # フォルダを作成
+    os.makedirs(output_dir, exist_ok=True)
+
+    filename = f"{yymmdd}_{tweet_id}.html"
+    filepath = os.path.join(output_dir, filename)
+
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        print(f"詳細ページHTMLを保存しました: {filepath}")
+        return filepath
+    except Exception as e:
+        print(f"詳細ページHTMLの保存に失敗しました: {e}")
         return None
 
-    # 出力先ディレクトリを決定（input/detailフォルダに保存）
-    detail_dir = os.path.join(config.INPUT_FOLDER, 'detail')
-    os.makedirs(detail_dir, exist_ok=True)
-
-    # ツイートIDを抽出してファイル名に使用
-    tweet_id = tweet_url.split('/')[-1] if '/' in tweet_url else 'unknown'
-    filename = f"{yymmdd}_{tweet_id}.html"
-    filepath = os.path.join(detail_dir, filename)
-
-    with open(filepath, 'w', encoding='utf-8') as f:
-        f.write(html_content)
-    return filepath
-
 def save_html_to_file(html_content, date_str, keyword_type='default', search_keyword=None):
-    """HTMLコンテンツをファイルに保存する
-
-    Args:
-        html_content (str): 保存するHTMLコンテンツ
-        date_str (str): 日付文字列（'2025-07-09' または '250709' など）
-        keyword_type (str): キーワードタイプ（デフォルト: 'default'）
-        search_keyword (str): 検索キーワード
-
-    Returns:
-        str: 保存されたファイルのパス、失敗時はNone
-    """
     # date_str: '2025-07-09' または '250709' など
     if '-' in date_str:  # YYYY-MM-DD形式
         # 2025-07-10 -> 250710
@@ -329,6 +367,8 @@ def save_html_to_file(html_content, date_str, keyword_type='default', search_key
 def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
          keyword_type='default', verbose=False, date_override=None, continuous=False,
          search_box=None, extension_button=None):
+    # コマンドライン引数として実行された場合の処理
+    import sys
 
     # デフォルトのargsオブジェクトを作成
     class Args:
@@ -436,8 +476,8 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
         print("エラー: 日付が指定されていません。--no-date オプションを使用するか、日付を指定してください。")
         sys.exit(1)
 
-    # until_datetime を初期化
-    until_datetime = ""
+    # output_filename を初期化（メイン関数の冒頭で設定）
+    output_filename = date_str if date_str else datetime.now().strftime('%y%m%d')
 
     try:
         # 日付指定がある場合
@@ -455,10 +495,12 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
             # until日付を設定
             until_datetime = f"until:{date_ymd}_23:59:59_JST"
             print(f"指定された日付のuntil日時を使用: {until_datetime}")
-            # 後続の処理で使用するためにdate_strを更新
+            # 後続の処理で使用するためにdate_strを更新（出力ファイル名用にYYMMDD形式を保持）
+            original_date_str = date_str  # 元のYYMMDD形式を保存
             date_str = date_ymd
         elif not use_date:
             # クリップボードからuntil日時を取得
+            import pyperclip
             clipboard_content = pyperclip.paste().strip()
             if clipboard_content.startswith('until:') and '_JST' in clipboard_content:
                 until_datetime = clipboard_content
@@ -468,12 +510,16 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
                 date_ymd = date_part.split(' ')[0]  # 日付部分のみを取得
                 date_str = date_ymd
                 print(f"クリップボードの日時からファイル名用日付を生成: {date_str.replace('-', '')}")
+                # output_filenameも更新（常にYYMMDD形式を維持）
+                output_filename = date_str.replace('-', '') if date_str else output_filename
             else:
                 # 現在時刻を使用
                 now = datetime.now()
                 until_datetime = now.strftime("until:%Y-%m-%d_%H:%M:%S_JST")
                 date_str = now.strftime("%Y-%m-%d")
                 print(f"現在時刻のuntil日時を使用: {until_datetime}")
+                # output_filenameも更新（常にYYMMDD形式を維持）
+                output_filename = date_str.replace('-', '') if date_str else output_filename
         else:
             # --no-date の場合はクリップボードを確認
             clipboard_content = pyperclip.paste()
@@ -483,6 +529,7 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
 
                 # until:2025-05-08_16:54:40_JST から 250508 を生成
                 try:
+                    import re
                     match = re.match(r'until:(\d{4})-(\d{2})-(\d{2})_\d{2}:\d{2}:\d{2}_JST', until_datetime)
                     if match:
                         year = match.group(1)
@@ -491,6 +538,8 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
                         # YYMMDD形式に変換
                         date_str = f"{year[2:]}{month}{day}"  # 2025 -> 25, 05, 08 -> 250508
                         print(f"クリップボードの日時からファイル名用日付を生成: {date_str}")
+                        # output_filenameも更新（常にYYMMDD形式を維持）
+                        output_filename = date_str
                     else:
                         print(f"警告: クリップボードのuntil日時の形式が正しくありません: {until_datetime}")
                         print("期待される形式: until:YYYY-MM-DD_HH:MM:SS_JST")
@@ -503,6 +552,8 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
                     until_datetime = f"until:{now.strftime('%Y-%m-%d_%H:%M:%S')}_JST"
                     date_str = now.strftime('%Y-%m-%d')
                     print(f"現在時刻のuntil日時を使用: {until_datetime}")
+                    # output_filenameも更新（常にYYMMDD形式を維持）
+                    output_filename = date_str.replace('-', '') if date_str else output_filename
             else:
                 # クリップボードに有効な値がない場合は現在時刻を使用
                 now = datetime.now()
@@ -517,6 +568,8 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
             until_datetime = f"until:{now.strftime('%Y-%m-%d_%H:%M:%S')}_JST"
             date_str = now.strftime('%Y-%m-%d')
             print(f"現在時刻のuntil日時を使用: {until_datetime}")
+            # output_filenameも更新（常にYYMMDD形式を維持）
+            output_filename = date_str.replace('-', '') if date_str else output_filename
         else:
             print("エラー: 日付の指定が必要です。--no-date オプションを使用するか、日付を指定してください。")
             print(f"指定された日付のuntil日時を使用: {until_datetime}")
@@ -532,6 +585,7 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
                 day = int(date_str[4:6])
                 date_obj = datetime(year=year, month=month, day=day)
                 date_str = date_obj.strftime('%Y-%m-%d')
+                # output_filenameは既にYYMMDD形式で初期化されているので変更不要
             else:
                 # YYYY-MM-DD形式の場合
                 date_obj = datetime.strptime(date_str, '%Y-%m-%d')
@@ -549,8 +603,10 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
             month = date_str[2:4]
             day = date_str[4:6]
             since_date = f"{year}-{month}-{day}"
+            # output_filenameは既にYYMMDD形式で初期化されているので変更不要
         else:
             since_date = date_str  # 既にYYYY-MM-DD形式の場合
+            # output_filenameは既にYYMMDD形式で初期化されているので変更不要
 
         # sinceとuntilの形式を統一 (YYYY-MM-DD_HH:MM:SS_JST)
         since_str = f"since:{since_date}_00:00:00_JST"
@@ -592,7 +648,10 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
         extension_button_pos = args_extension_button
         print("事前に設定されたマウスポジションを使用します")
     else:
-        # マウスポジション設定ロジックを実行（設定フラグは使用せず、毎回確認を求める）
+        # マウスポジション設定済みフラグを確認
+        positions_configured = config.load_mouse_positions_configured_flag()
+
+        # 従来のマウスポジション設定ロジックを実行
         print("位置設定を開始します...\n")
         # 各位置を取得
         print("== 位置設定 ==")
@@ -605,9 +664,9 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
             positions_for_check.get('extension_button', {}).get('y', 0) > 0
         )
 
-        # 保存済みがある場合のみ、利用可否を対話で確認（毎回確認を求める）
+        # 保存済みがある場合のみ、利用可否を対話で確認（TTY環境のみ）
         if has_saved_positions:
-            # 保存済み位置がある場合は常に確認を求める
+            # 保存済みはあるが初回の場合は確認を求める
             try:
                 if sys.stdin.isatty():
                     ans = input("保存された位置を使用しますか？ [Y/n]: ").strip().lower()
@@ -616,12 +675,16 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
                     else:
                         # y, Y, または未入力の場合は保存位置を使用
                         use_saved = True
+                        # 設定済みフラグを保存
+                        config.save_mouse_positions_configured_flag(True)
                 else:
                     # 非対話（テストなど）では自動で保存位置を使用
                     use_saved = True
+                    config.save_mouse_positions_configured_flag(True)
             except Exception:
                 # 何らかの理由で入力に失敗した場合は安全側（保存位置を使用）
                 use_saved = True
+                config.save_mouse_positions_configured_flag(True)
         else:
             # 保存がない場合は新規取得
             use_saved = False
@@ -642,8 +705,9 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
             args=args
         )
 
-        # マウスポジション設定後に設定済みフラグを保存（削除 - 毎回確認するようにする）
-        # 設定フラグを保存せず、毎回ユーザーに選択を求めるようにする
+        # マウスポジション設定後に設定済みフラグを保存
+        if not use_saved:  # 新規設定の場合のみ
+            config.save_mouse_positions_configured_flag(True)
 
     print("\n=== 自動化開始 ===")
     time.sleep(0.2)
@@ -666,6 +730,54 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
             filepath = save_html_to_file(html_content, date_str, keyword_type, search_keyword)
             if filepath:
                 print(f"HTMLファイルを保存しました: {filepath}")
+
+                # 「さらに表示」ボタンがあるツイートを処理
+                print("\n=== 「さらに表示」ボタン処理開始 ===")
+                try:
+                    # タイムラインからツイートデータを抽出して詳細ページ処理
+                    from src.extract_tweets_from_html import extract_tweets_from_html, save_tweets_to_files
+                    tweets_data = extract_tweets_from_html(filepath)
+
+                    if tweets_data:
+                        # 詳細ページ処理を実行
+                        complete_texts = process_detail_pages(tweets_data, search_box_pos, extension_button_pos, date_str, keyword_type)
+
+                        if complete_texts:
+                            print(f"\n詳細ページ処理完了: {len(complete_texts)}件の完全なテキストを取得しました")
+                            
+                            # 詳細ページから取得したテキストでタイムラインデータを更新
+                            for tweet in tweets_data:
+                                tweet_url = tweet.get('quote_url')
+                                if tweet_url and tweet_url in complete_texts:
+                                    original_length = len(tweet.get('text', ''))
+                                    tweet['text'] = complete_texts[tweet_url]
+                                    print(f"テキストを更新しました: {tweet_url}")
+                                    print(f"  更新前: {original_length}文字")
+                                    print(f"  更新後: {len(complete_texts[tweet_url])}文字")
+                            
+                            # デバッグ: 更新後のテキストを確認
+                            for tweet in tweets_data:
+                                if tweet.get('quote_url') in complete_texts:
+                                    print(f"更新確認: {len(tweet.get('text', ''))}文字のテキストがあります")
+                            
+                            # デバッグ: output_filenameの確認
+                            print(f"出力ファイル名: {output_filename}")
+                            print(f"更新されたツイートデータ数: {len(tweets_data)}")
+                            
+                            # 更新されたデータでファイル出力
+                            save_tweets_to_files(tweets_data, output_filename, keyword_type)
+                            print("ファイル出力を実行しました")
+                        else:
+                            print("\n詳細ページ処理で完全なテキストが見つかりませんでした")
+                            # 詳細ページ処理に失敗した場合は元のデータで出力
+                            save_tweets_to_files(tweets_data, output_filename, keyword_type)
+                    else:
+                        print("タイムラインからツイートを抽出できませんでした")
+
+                except ImportError as e:
+                    print(f"抽出モジュールのインポートに失敗しました: {e}")
+                except Exception as e:
+                    print(f"詳細ページ処理中にエラーが発生しました: {e}")
 
                 return True
             else:
