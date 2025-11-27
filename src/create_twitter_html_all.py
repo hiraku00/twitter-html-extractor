@@ -122,7 +122,7 @@ def navigate_to_twitter_search(search_query, search_box_pos):
     # 検索クエリをクリップボードにコピーして貼り付け
     pyautogui.click(search_box_pos['x'], search_box_pos['y'])
     pyperclip.copy(search_query)
-    time.sleep(0.4)
+    time.sleep(0.7)
     pyautogui.hotkey('command', 'v')
     time.sleep(0.2)
     pyautogui.press('enter')
@@ -152,18 +152,10 @@ def copy_html_with_extension(extension_button_pos):
         return None
 
     return html_content
-    """「さらに表示」ボタンがあるツイートの詳細ページを処理
 
-    Args:
-        tweets_data: タイムラインから抽出されたツイートデータ
-        search_box_pos: 検索ボックスの位置情報
-        extension_button_pos: 拡張ボタンの位置情報
-        date_str: 日付文字列
-        keyword_type: キーワードタイプ
 
-    Returns:
-        dict: 詳細ページから取得した完全なテキストデータ {url: text}
-    """
+def process_detail_pages(tweets_data, search_box_pos, extension_button_pos, date_str, keyword_type):
+    """「さらに表示」ボタンがあるツイートの詳細ページを処理"""
     complete_texts = {}
 
     # 「さらに表示」ボタンがあるツイートのみ処理
@@ -201,11 +193,14 @@ def copy_html_with_extension(extension_button_pos):
             if html_content:
                 # HTMLから完全なテキストを抽出
                 soup = BeautifulSoup(html_content, 'html.parser')
-                text_elements = soup.select('[data-testid="tweetText"] span')
-                if text_elements:
-                    # 本来のツイート内容は最初の要素のみを使用
-                    complete_text = text_elements[0].get_text()
-                    complete_text = re.sub(r'\s+', ' ', complete_text).strip()
+                text_container = soup.select_one('[data-testid="tweetText"]')
+                if text_container:
+                    complete_text = text_container.get_text(separator='\n')
+                    complete_text = complete_text.replace('\r\n', '\n').replace('\r', '\n')
+                    complete_text = re.sub(r'[ \t]+\n', '\n', complete_text)
+                    complete_text = re.sub(r'\n{3,}', '\n\n', complete_text)
+                    complete_text = re.sub(r'[ \t]{2,}', ' ', complete_text)
+                    complete_text = re.sub(r' ?\n ?', '\n', complete_text).strip()
                     print(f"詳細ページからテキスト取得完了（{len(complete_text)}文字）")
                     complete_texts[tweet_url] = complete_text
 
