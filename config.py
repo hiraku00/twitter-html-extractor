@@ -14,7 +14,8 @@ SEARCH_KEYWORDS = {
     'en': 'dtv visa',
     'chikirin': '#ちきりんセレクトTV',
     'manekineko': 'from:thailandelitevi',
-    'intmax': 'lang:ja "intmax" マイニング or mining',
+    # 'intmax': 'lang:ja "intmax" マイニング or mining',
+    'intmax': 'lang:ja intmax',
     'custom': None  # カスタムキーワード用
 }
 
