@@ -84,8 +84,8 @@ def get_position(prompt, position_name, test_mode=False, use_saved=False, args=N
     # 保存された位置を確認
     positions = load_positions()
 
-    # 保存された位置があり、有効な座標の場合
-    if use_saved and positions[position_name]['x'] > 0 and positions[position_name]['y'] > 0:
+    # 保存された位置があり、座標が設定されている場合
+    if use_saved and 'x' in positions[position_name] and 'y' in positions[position_name]:
         return {
             'x': positions[position_name]['x'],
             'y': positions[position_name]['y']
@@ -559,10 +559,10 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
     # まず保存済み位置があるか確認
     positions_for_check = load_positions()
     has_saved_positions = (
-        positions_for_check.get('search_box', {}).get('x', 0) > 0 and
-        positions_for_check.get('search_box', {}).get('y', 0) > 0 and
-        positions_for_check.get('extension_button', {}).get('x', 0) > 0 and
-        positions_for_check.get('extension_button', {}).get('y', 0) > 0
+        'x' in positions_for_check.get('search_box', {}) and
+        'y' in positions_for_check.get('search_box', {}) and
+        'x' in positions_for_check.get('extension_button', {}) and
+        'y' in positions_for_check.get('extension_button', {})
     )
 
     # デフォルトは連続モード指定時は保存位置使用
@@ -585,10 +585,10 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
         # まず保存済み位置があるか確認
         positions_for_check = load_positions()
         has_saved_positions = (
-            positions_for_check.get('search_box', {}).get('x', 0) > 0 and
-            positions_for_check.get('search_box', {}).get('y', 0) > 0 and
-            positions_for_check.get('extension_button', {}).get('x', 0) > 0 and
-            positions_for_check.get('extension_button', {}).get('y', 0) > 0
+            'x' in positions_for_check.get('search_box', {}) and
+            'y' in positions_for_check.get('search_box', {}) and
+            'x' in positions_for_check.get('extension_button', {}) and
+            'y' in positions_for_check.get('extension_button', {})
         )
 
         # 保存済みがある場合のみ、利用可否を対話で確認（毎回確認を求める）

@@ -649,11 +649,11 @@ def run_all_command(args, test_mode=False):
                 # 保存された位置を確認（設定フラグは使用せず、毎回確認を求める）
                 positions = load_positions()
 
-                # 保存された位置があり、有効な座標の場合は常に確認を求める
-                if (positions.get('search_box', {}).get('x', 0) > 0 and
-                    positions.get('search_box', {}).get('y', 0) > 0 and
-                    positions.get('extension_button', {}).get('x', 0) > 0 and
-                    positions.get('extension_button', {}).get('y', 0) > 0):
+                # 保存された位置があり、座標が設定されている場合は常に確認を求める
+                if ('x' in positions.get('search_box', {}) and
+                    'y' in positions.get('search_box', {}) and
+                    'x' in positions.get('extension_button', {}) and
+                    'y' in positions.get('extension_button', {})):
                     # 保存済み位置がある場合は常に確認を求める
                     print("保存されたマウスポジションが見つかりました")
                     try:
@@ -811,11 +811,11 @@ def run_continuous_mode(args, test_mode=False, command='all'):
                 positions = load_positions()
                 use_saved = True
 
-                # 保存された位置があり、有効な座標の場合は自動的に使用
-                if (positions.get('search_box', {}).get('x', 0) > 0 and
-                    positions.get('search_box', {}).get('y', 0) > 0 and
-                    positions.get('extension_button', {}).get('x', 0) > 0 and
-                    positions.get('extension_button', {}).get('y', 0) > 0):
+                # 保存された位置があり、座標が設定されている場合は自動的に使用
+                if ('x' in positions.get('search_box', {}) and
+                    'y' in positions.get('search_box', {}) and
+                    'x' in positions.get('extension_button', {}) and
+                    'y' in positions.get('extension_button', {})):
                     search_box_pos = positions['search_box']
                     extension_button_pos = positions['extension_button']
                 else:
