@@ -5,17 +5,16 @@
 """
 
 # デフォルトの検索キーワード
-DEFAULT_SEARCH_KEYWORD = 'dtv ビザ'
+DEFAULT_SEARCH_KEYWORD = '"dtv" "ビザ"'
 
 # 検索キーワードの定義
 SEARCH_KEYWORDS = {
-    'default': 'dtv ビザ',
-    'thai': 'dtv タイ',
-    'en': 'dtv visa',
+    'default': '"dtv" "ビザ"',
+    'thai': '"dtv" "タイ"',
+    'en': '"dtv" "visa"',
     'chikirin': '#ちきりんセレクトTV',
     'manekineko': 'from:thailandelitevi',
-    # 'intmax': 'lang:ja "intmax" マイニング or mining',
-    'intmax': 'lang:ja intmax',
+    'intmax': 'lang:ja "intmax"',
     'custom': None  # カスタムキーワード用
 }
 
