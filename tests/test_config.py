@@ -33,11 +33,11 @@ class TestConfig(unittest.TestCase):
         # chikirinのprefixが正しく設定されていることを確認
         self.assertEqual(config.KEYWORD_PREFIX_MAPPING['chikirin'], 'chikirin')
 
-        # 他のキーワードタイプはprefixがNoneであることを確認
+        # 各キーワードタイプのprefixが正しく設定されていることを確認
         self.assertIsNone(config.KEYWORD_PREFIX_MAPPING['default'])
-        self.assertIsNone(config.KEYWORD_PREFIX_MAPPING['thai'])
-        self.assertIsNone(config.KEYWORD_PREFIX_MAPPING['en'])
-        self.assertIsNone(config.KEYWORD_PREFIX_MAPPING['custom'])
+        self.assertEqual(config.KEYWORD_PREFIX_MAPPING['thai'], 'thai')
+        self.assertEqual(config.KEYWORD_PREFIX_MAPPING['en'], 'en')
+        self.assertEqual(config.KEYWORD_PREFIX_MAPPING['custom'], 'custom')
 
     def test_get_prefix_folders(self):
         """prefix別フォルダ取得機能のテスト"""
@@ -83,6 +83,29 @@ class TestConfig(unittest.TestCase):
         """日付形式が定義されていることを確認"""
         self.assertIsNotNone(config.DATE_FORMAT)
         self.assertIsNotNone(config.TIME_FORMAT)
+
+    def test_wait_seconds_exist(self):
+        """UI操作の待機秒数が定義されていることを確認"""
+        expected_keys = {
+            'after_search_box_click',
+            'after_search_clear_click',
+            'after_clipboard_copy',
+            'after_search_paste',
+            'search_results_load',
+            'before_extension_click',
+            'extension_copy_complete',
+            'after_new_tab_open',
+            'after_url_paste',
+            'detail_page_load',
+            'after_tab_close',
+            'before_automation_start',
+            'initial_page_load',
+        }
+
+        self.assertEqual(expected_keys, set(config.WAIT_SECONDS.keys()))
+        for wait_seconds in config.WAIT_SECONDS.values():
+            self.assertIsInstance(wait_seconds, (int, float))
+            self.assertGreaterEqual(wait_seconds, 0)
 
     def test_debug_setting_exists(self):
         """デバッグ設定が定義されていることを確認"""

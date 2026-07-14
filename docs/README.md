@@ -16,6 +16,7 @@ Twitter/X の検索結果 HTML からツイート情報を自動抽出・整理�
 - 複数キーワードの一括指定（カンマ区切り）により、複数の検索条件を連続して自動処理
 - 詳細なログ出力でデバッグをサポート
 - マルチディスプレイ環境等の負のマウス座標にも完全対応
+- ブラウザ操作時の待機秒数を `config.py` の `WAIT_SECONDS` で一元管理
 
 ## 詳細ページ処理機能
 
@@ -50,6 +51,8 @@ Twitter/X の検索結果 HTML からツイート情報を自動抽出・整理�
 この機能により、タイムラインで省略表示されていたツイートの全文を自動的に取得・保存できるようになりました。
 
 補足: マウスポジションは `data/config/positions.json` に保存されます。マルチディスプレイ環境などの負の座標系にも対応しています。TTY環境では実行時に「保存された位置を使用しますか？［y/N］」が表示されます。yで保存位置を使用、nで再取得します（非TTYでは自動で保存位置を使用）。
+
+補足: 検索欄クリック後、HTMLコピー完了待ち、詳細ページ読み込み待ちなどの UI 操作待機時間は `config.py` の `WAIT_SECONDS` で調整できます。Copy HTML 拡張ボタン押下後の待機時間は `extension_copy_complete` で、標準値は 2.0 秒です。
 
 ## インストール
 
@@ -86,6 +89,7 @@ pytest --cov=src tests/
 - キーワードや日付条件（since/until 句）はスクリプトが自動で入力
 - スクリプトはこの検索画面上で自動的に検索クエリを入力し、Copy HTML 拡張ボタンを押下して HTML を取得
  - マウスポジションはリポジトリ内 `data/config/positions.json` に保存・再利用されます（TTYでは実行時に使用可否を確認）
+- Copy HTML 拡張ボタン押下後の待機時間などは `config.py` の `WAIT_SECONDS` で調整できます
 
 ## 基本的な使い方
 
@@ -428,7 +432,7 @@ twitter-html-extractor/
 │   ├── test_create_twitter_html_auto.py
 │   └── run_tests.py
 ├── main.py                       # エントリーポイント
-├── config.py                     # 設定ファイル
+├── config.py                     # 設定ファイル（キーワード、保存先、待機秒数など）
 ├── requirements.txt
 └── .gitignore
 ```
@@ -452,6 +456,7 @@ twitter-html-extractor/
 - 複数キーワードのカンマ区切り指定に対応
 - ログ出力を体系化し、デバッグを容易に
 - 日付未指定時に前日（JST）を自動設定（`html` / `all`）
+- UI 操作時の待機秒数を `config.py` の `WAIT_SECONDS` に集約
 
 ### [1.0.0] - 2025-XX-XX
 

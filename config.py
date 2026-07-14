@@ -60,9 +60,29 @@ def get_prefix_folders(prefix):
 DATE_FORMAT = '%Y-%m-%d'
 TIME_FORMAT = '%H:%M:%S'
 
+# デバッグ出力設定
+DEBUG = False
+
 # 検索クエリのテンプレート（クリップボードのuntil日時を使用）
 SEARCH_QUERY_TEMPLATE_WITH_SINCE = 'since:{date}_00:00:00_JST {until_datetime} {keyword}'
 SEARCH_QUERY_TEMPLATE_WITHOUT_SINCE = '{until_datetime} {keyword}'
+
+# UI操作の待機秒数
+WAIT_SECONDS = {
+    'after_search_box_click': 0.2,
+    'after_search_clear_click': 0.2,
+    'after_clipboard_copy': 0.7,
+    'after_search_paste': 0.2,
+    'search_results_load': 1,
+    'before_extension_click': 0.2,
+    'extension_copy_complete': 2.0,
+    'after_new_tab_open': 1,
+    'after_url_paste': 0.5,
+    'detail_page_load': 3,
+    'after_tab_close': 0.5,
+    'before_automation_start': 0.2,
+    'initial_page_load': 0.5,
+}
 
 # マウスポジション設定ファイルのパス
 import os

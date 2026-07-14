@@ -114,31 +114,31 @@ def navigate_to_twitter_search(search_query, search_box_pos):
     """
     # 検索ボックスをクリックしてフォーカス
     pyautogui.click(search_box_pos['x'], search_box_pos['y'])
-    time.sleep(0.2)
+    time.sleep(config.WAIT_SECONDS['after_search_box_click'])
     # ×ボタンをクリックして検索をクリア
     pyautogui.click(search_box_pos['x'], search_box_pos['y'])
-    time.sleep(0.2)
+    time.sleep(config.WAIT_SECONDS['after_search_clear_click'])
 
     # 検索クエリをクリップボードにコピーして貼り付け
     pyautogui.click(search_box_pos['x'], search_box_pos['y'])
     pyperclip.copy(search_query)
-    time.sleep(0.7)
+    time.sleep(config.WAIT_SECONDS['after_clipboard_copy'])
     pyautogui.hotkey('command', 'v')
-    time.sleep(0.2)
+    time.sleep(config.WAIT_SECONDS['after_search_paste'])
     pyautogui.press('enter')
-    time.sleep(1)  # 検索結果が表示されるのを待つ
+    time.sleep(config.WAIT_SECONDS['search_results_load'])  # 検索結果が表示されるのを待つ
 
 def copy_html_with_extension(extension_button_pos):
     """ブラウザ拡張ボタンを押してHTMLをクリップボードにコピー"""
     x, y = extension_button_pos['x'], extension_button_pos['y']
 
     # クリック前に少し待機
-    time.sleep(0.2)
+    time.sleep(config.WAIT_SECONDS['before_extension_click'])
 
     # 拡張ボタンをクリック
     pyautogui.click(x, y)
     print(f"拡張ボタンクリック位置: ({x}, {y})")
-    time.sleep(0.8)  # コピーが完了するのを待つ
+    time.sleep(config.WAIT_SECONDS['extension_copy_complete'])  # コピーが完了するのを待つ
 
     # クリップボードからHTMLを取得
     html_content = pyperclip.paste()
@@ -178,14 +178,14 @@ def process_detail_pages(tweets_data, search_box_pos, extension_button_pos, date
 
             # 新しいタブを開く（Ctrl+T）
             pyautogui.hotkey('command', 't')
-            time.sleep(1)
+            time.sleep(config.WAIT_SECONDS['after_new_tab_open'])
 
             # URLをクリップボードにコピーして貼り付け
             pyperclip.copy(tweet_url)
             pyautogui.hotkey('command', 'v')
-            time.sleep(0.5)
+            time.sleep(config.WAIT_SECONDS['after_url_paste'])
             pyautogui.press('enter')
-            time.sleep(3)  # ページ読み込み待機
+            time.sleep(config.WAIT_SECONDS['detail_page_load'])  # ページ読み込み待機
 
             # 詳細ページでHTMLをコピー
             html_content = copy_html_with_extension(extension_button_pos)
@@ -215,14 +215,14 @@ def process_detail_pages(tweets_data, search_box_pos, extension_button_pos, date
 
             # 新しいタブを閉じる（Ctrl+W）
             pyautogui.hotkey('command', 'w')
-            time.sleep(0.5)
+            time.sleep(config.WAIT_SECONDS['after_tab_close'])
 
         except Exception as e:
             print(f"詳細ページ処理中にエラー発生: {e}")
             # エラー時はタブを閉じて続行
             try:
                 pyautogui.hotkey('command', 'w')
-                time.sleep(0.5)
+                time.sleep(config.WAIT_SECONDS['after_tab_close'])
             except:
                 pass
 
@@ -632,7 +632,7 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
         # 設定フラグを保存せず、毎回ユーザーに選択を求めるようにする
 
     print("\n=== 自動化開始 ===")
-    time.sleep(0.2)
+    time.sleep(config.WAIT_SECONDS['before_automation_start'])
 
     try:
         # Twitterの検索を実行
@@ -641,7 +641,7 @@ def main(test_mode=False, date_str=None, search_keyword=None, use_date=True,
 
         # ページの読み込みを待機
         print("ページの読み込みを待機中...")
-        time.sleep(0.5)
+        time.sleep(config.WAIT_SECONDS['initial_page_load'])
 
         # ブラウザ拡張ボタンでHTMLをコピー
         print("HTMLをコピー中...")
