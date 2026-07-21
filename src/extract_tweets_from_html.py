@@ -374,6 +374,23 @@ def save_tweets_to_files(tweets, base_filename="extracted_tweets", keyword_type=
 
     print(f"結果を {txt_path} と {json_path} に保存しました。")
 
+def append_chikirin_results_to_watch_list(tweets, keyword_type):
+    """ちきりんセレクトTVの取得結果をObsidianの視聴リストへ反映する。"""
+    if keyword_type != 'chikirin':
+        return
+
+    from src.append_chikirin_to_watch_list import append_chikirin_tweets
+
+    try:
+        appended_count = append_chikirin_tweets(tweets)
+    except OSError as e:
+        print(f"警告: 視聴リストへの追記に失敗しました: {e}")
+        return
+    if appended_count:
+        print(f"視聴リストに {appended_count} 件のちきりんセレクトTVを追記しました。")
+    else:
+        print("視聴リストに追記する未登録のちきりんセレクトTVはありません。")
+
 def main():
     """メイン処理"""
     # コマンドライン引数の解析
@@ -511,6 +528,7 @@ def main():
 
         # ツイートを抽出して保存
         save_tweets_to_files(tweets, output_filename, args.keyword_type)
+        append_chikirin_results_to_watch_list(tweets, args.keyword_type)
 
         # 結果を表示
         print("\n抽出されたツイート:")
