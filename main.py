@@ -429,7 +429,12 @@ def run_html_command(args):
             }
 
             try:
-                create_twitter_html_all_main(**kwargs)
+                html_success = create_twitter_html_all_main(**kwargs)
+                if not html_success:
+                    success = False
+                    print(f"キーワードタイプ '{keyword_type}' のHTML作成に失敗しました")
+                    continue
+
                 if hasattr(args, 'verbose') and args.verbose:
                     print(f"キーワードタイプ '{keyword_type}' のHTML作成が完了しました")
             except Exception as e:

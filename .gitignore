@@ -52,12 +52,19 @@ wheels/
 
 # 環境関連
 .env
+.env.*
+!.env.example
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+*.pem
+*.key
+credentials*.json
+secrets*.json
+*.log
 
 # IDE関連
 .vscode/
