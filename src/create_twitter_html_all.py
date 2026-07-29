@@ -112,6 +112,10 @@ def navigate_to_twitter_search(search_query, search_box_pos):
         search_query (str): 検索クエリ
         search_box_pos (dict): 検索ボックスと×ボタンの座標 {'x': int, 'y': int}
     """
+    # 拡張機能のポップアップなどが残っていると、最初のクリックが吸われることがある。
+    pyautogui.press('esc')
+    time.sleep(config.WAIT_SECONDS['before_extension_click'])
+
     # 検索ボックスをクリックしてフォーカス
     pyautogui.click(search_box_pos['x'], search_box_pos['y'])
     time.sleep(config.WAIT_SECONDS['after_search_box_click'])
@@ -143,8 +147,9 @@ def copy_html_with_extension(extension_button_pos):
     # クリップボードからHTMLを取得
     html_content = pyperclip.paste()
 
-    # クリップボードからHTMLを取得
-    html_content = pyperclip.paste()
+    # 次の検索やタブ操作にフォーカスを戻すため、拡張機能のポップアップを閉じる。
+    pyautogui.press('esc')
+    time.sleep(config.WAIT_SECONDS['before_extension_click'])
 
     # HTMLの内容を検証
     if not html_content or len(html_content) < 500:
@@ -152,6 +157,76 @@ def copy_html_with_extension(extension_button_pos):
         return None
 
     return html_content
+
+
+def get_tweet_status_id(tweet_url):
+    """ツイートURLからstatus IDを取得する"""
+    match = re.search(r'/status/(\d+)', tweet_url or '')
+    return match.group(1) if match else None
+
+
+def validate_detail_html_for_tweet(html_content, tweet_url):
+    """コピーしたHTMLが対象ツイートの詳細ページか確認する"""
+    status_id = get_tweet_status_id(tweet_url)
+    if not status_id:
+        return False, "ツイートURLからstatus IDを取得できませんでした", None
+
+    soup = BeautifulSoup(html_content, 'html.parser')
+    canonical = soup.find('link', rel='canonical')
+    canonical_url = canonical.get('href', '') if canonical else ''
+    title = soup.find('title')
+    title_text = title.get_text(strip=True) if title else ''
+
+    if '/search?' in canonical_url or ' - 検索 / X' in title_text:
+        return False, f"検索一覧HTMLをコピーしています: canonical={canonical_url}", soup
+
+    if status_id not in canonical_url:
+        return False, f"対象外の詳細HTMLです: expected_status={status_id}, canonical={canonical_url}", soup
+
+    return True, canonical_url, soup
+
+
+def close_detail_tab():
+    """拡張機能のポップアップを閉じてから詳細タブを閉じる"""
+    # 拡張ボタン押下後にポップアップへフォーカスが残る場合があるため、
+    # 先にEscapeでポップアップを閉じてからタブを閉じる。
+    pyautogui.press('esc')
+    time.sleep(config.WAIT_SECONDS['before_extension_click'])
+    pyautogui.hotkey('command', 'w')
+    time.sleep(config.WAIT_SECONDS['after_tab_close'])
+
+
+def press_chrome_shortcut(key):
+    """macOSでCommandショートカットを確実に送る"""
+    pyautogui.keyDown('command')
+    time.sleep(0.1)
+    pyautogui.press(key)
+    time.sleep(0.1)
+    pyautogui.keyUp('command')
+
+
+def paste_clipboard():
+    """macOSでクリップボードを貼り付ける"""
+    pyautogui.keyDown('command')
+    time.sleep(0.1)
+    pyautogui.press('v')
+    time.sleep(0.1)
+    pyautogui.keyUp('command')
+
+
+def open_detail_url_in_new_tab(tweet_url):
+    """新規タブを開き、URL欄を選択して詳細URLへ移動する"""
+    press_chrome_shortcut('t')
+    time.sleep(config.WAIT_SECONDS['after_new_tab_open'])
+
+    # URL欄を明示的に選択する。前のページのフォーカスを引き継がない。
+    press_chrome_shortcut('l')
+    time.sleep(config.WAIT_SECONDS['after_clipboard_copy'])
+    pyperclip.copy(tweet_url)
+    paste_clipboard()
+    time.sleep(config.WAIT_SECONDS['after_url_paste'])
+    pyautogui.press('enter')
+    time.sleep(config.WAIT_SECONDS['detail_page_load'])
 
 
 def process_detail_pages(tweets_data, search_box_pos, extension_button_pos, date_str, keyword_type):
@@ -175,24 +250,33 @@ def process_detail_pages(tweets_data, search_box_pos, extension_button_pos, date
 
         try:
             print(f"\n詳細ページ処理中: {tweet_url}")
+            detail_processed = False
 
-            # 新しいタブを開く（Ctrl+T）
-            pyautogui.hotkey('command', 't')
-            time.sleep(config.WAIT_SECONDS['after_new_tab_open'])
+            for attempt in range(1, 4):
+                if attempt > 1:
+                    print(f"詳細ページ取得をリトライします ({attempt}/3): {tweet_url}")
 
-            # URLをクリップボードにコピーして貼り付け
-            pyperclip.copy(tweet_url)
-            pyautogui.hotkey('command', 'v')
-            time.sleep(config.WAIT_SECONDS['after_url_paste'])
-            pyautogui.press('enter')
-            time.sleep(config.WAIT_SECONDS['detail_page_load'])  # ページ読み込み待機
+                # 残っているポップアップやフォーカスを逃がしてから新規タブを開く。
+                pyautogui.press('esc')
+                time.sleep(config.WAIT_SECONDS['before_extension_click'])
 
-            # 詳細ページでHTMLをコピー
-            html_content = copy_html_with_extension(extension_button_pos)
+                open_detail_url_in_new_tab(tweet_url)
 
-            if html_content:
-                # HTMLから完全なテキストを抽出
-                soup = BeautifulSoup(html_content, 'html.parser')
+                # 詳細ページでHTMLをコピー
+                html_content = copy_html_with_extension(extension_button_pos)
+
+                if not html_content:
+                    print("詳細ページからHTMLの取得に失敗しました")
+                    continue
+
+                is_detail_html, detail_message, soup = validate_detail_html_for_tweet(html_content, tweet_url)
+                if not is_detail_html:
+                    print(f"警告: {detail_message}")
+                    if '/search?' not in detail_message:
+                        close_detail_tab()
+                    continue
+
+                print(f"詳細ページHTMLを確認しました: {detail_message}")
                 text_container = soup.select_one('[data-testid="tweetText"]')
                 if text_container:
                     complete_text = text_container.get_text(separator='\n')
@@ -208,21 +292,23 @@ def process_detail_pages(tweets_data, search_box_pos, extension_button_pos, date
                     detail_html_path = save_detail_html_to_file(html_content, tweet_url, date_str, keyword_type)
                     if detail_html_path:
                         print(f"詳細ページのHTMLを保存しました: {detail_html_path}")
+                    detail_processed = True
                 else:
                     print("詳細ページからテキスト要素が見つかりませんでした")
-            else:
-                print("詳細ページからHTMLの取得に失敗しました")
+                    detail_processed = True
 
-            # 新しいタブを閉じる（Ctrl+W）
-            pyautogui.hotkey('command', 'w')
-            time.sleep(config.WAIT_SECONDS['after_tab_close'])
+                # 拡張機能のポップアップを閉じてから詳細タブを閉じる
+                close_detail_tab()
+                break
+
+            if not detail_processed:
+                print(f"詳細ページの取得に失敗したためスキップします: {tweet_url}")
 
         except Exception as e:
             print(f"詳細ページ処理中にエラー発生: {e}")
             # エラー時はタブを閉じて続行
             try:
-                pyautogui.hotkey('command', 'w')
-                time.sleep(config.WAIT_SECONDS['after_tab_close'])
+                close_detail_tab()
             except:
                 pass
 

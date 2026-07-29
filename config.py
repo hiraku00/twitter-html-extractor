@@ -69,16 +69,18 @@ SEARCH_QUERY_TEMPLATE_WITHOUT_SINCE = '{until_datetime} {keyword}'
 
 # UI操作の待機秒数
 WAIT_SECONDS = {
-    'after_search_box_click': 0.2,
-    'after_search_clear_click': 0.2,
-    'after_clipboard_copy': 0.7,
-    'after_search_paste': 0.2,
-    'search_results_load': 1,
+    'after_search_box_click': 0.4,
+    'after_search_clear_click': 0.4,
+    'after_clipboard_copy': 0.9,
+    'after_search_paste': 0.4,
+    # Xの検索結果はSPA描画のため、Enter直後に固定秒数だけ待つ
+    'search_results_load': 2.0,
     'before_extension_click': 0.2,
     'extension_copy_complete': 2.0,
     'after_new_tab_open': 1,
     'after_url_paste': 0.5,
-    'detail_page_load': 3,
+    # 詳細ページは検索結果より描画に時間がかかるため余裕を持たせる
+    'detail_page_load': 4.0,
     'after_tab_close': 0.5,
     'before_automation_start': 0.2,
     'initial_page_load': 0.5,

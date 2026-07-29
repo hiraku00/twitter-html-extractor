@@ -24,8 +24,8 @@ class TestNavigateToTwitterSearch(unittest.TestCase):
         navigate_to_twitter_search(search_query, search_box_pos)
         
         # 検証
-        # 1. 検索ボックスを2回クリック
-        self.assertEqual(mock_click.call_count, 2)
+        # 1. 検索ボックスを3回クリック
+        self.assertEqual(mock_click.call_count, 3)
         mock_click.assert_any_call(100, 200)
         
         # 2. クリップボードにコピー
@@ -34,8 +34,9 @@ class TestNavigateToTwitterSearch(unittest.TestCase):
         # 3. ペースト
         mock_hotkey.assert_called_once_with('command', 'v')
         
-        # 4. Enterキー
-        mock_press.assert_called_once_with('enter')
+        # 4. 残ったポップアップを閉じてからEnterキー
+        mock_press.assert_any_call('esc')
+        mock_press.assert_any_call('enter')
         
         # 5. スリープの呼び出しを確認
         mock_sleep.assert_called()

@@ -70,6 +70,73 @@ class TestCreateTwitterHtmlAuto(unittest.TestCase):
             content = f.read()
         self.assertEqual(content, html_content)
 
+    def test_validate_detail_html_for_tweet_accepts_matching_status(self):
+        """対象ツイートの詳細HTMLだけを受理するテスト"""
+        from src.create_twitter_html_all import validate_detail_html_for_tweet
+
+        html_content = """
+        <html>
+          <head>
+            <title>tweet / X</title>
+            <link rel="canonical" href="https://x.com/user/status/12345">
+          </head>
+          <body><div data-testid="tweetText">hello</div></body>
+        </html>
+        """
+
+        ok, message, soup = validate_detail_html_for_tweet(
+            html_content,
+            "https://x.com/user/status/12345",
+        )
+
+        self.assertTrue(ok)
+        self.assertEqual(message, "https://x.com/user/status/12345")
+        self.assertIsNotNone(soup.select_one('[data-testid="tweetText"]'))
+
+    def test_validate_detail_html_for_tweet_rejects_search_results(self):
+        """検索一覧HTMLを詳細HTMLとして受理しないテスト"""
+        from src.create_twitter_html_all import validate_detail_html_for_tweet
+
+        html_content = """
+        <html>
+          <head>
+            <title>intmax - 検索 / X</title>
+            <link rel="canonical" href="https://x.com/search?src=typed_query&amp;q=intmax">
+          </head>
+          <body><div data-testid="tweetText">list item</div></body>
+        </html>
+        """
+
+        ok, message, soup = validate_detail_html_for_tweet(
+            html_content,
+            "https://x.com/user/status/12345",
+        )
+
+        self.assertFalse(ok)
+        self.assertIn("検索一覧HTML", message)
+        self.assertIsNotNone(soup)
+
+    def test_open_detail_url_uses_new_tab_and_selects_url_bar(self):
+        """詳細URLを入力する前に毎回新規タブとURL欄を選択する"""
+        from src.create_twitter_html_all import open_detail_url_in_new_tab
+
+        with patch('src.create_twitter_html_all.pyperclip.copy') as mock_copy:
+            open_detail_url_in_new_tab("https://x.com/user/status/12345")
+
+        self.assertEqual(
+            self.mock_pyautogui.keyDown.call_args_list,
+            [unittest.mock.call('command'), unittest.mock.call('command'), unittest.mock.call('command')],
+        )
+        self.assertEqual(
+            self.mock_pyautogui.press.call_args_list,
+            [unittest.mock.call('t'), unittest.mock.call('l'), unittest.mock.call('v'), unittest.mock.call('enter')],
+        )
+        self.assertEqual(
+            self.mock_pyautogui.keyUp.call_args_list,
+            [unittest.mock.call('command'), unittest.mock.call('command'), unittest.mock.call('command')],
+        )
+        mock_copy.assert_called_once_with("https://x.com/user/status/12345")
+
     def test_search_query_with_since(self):
         """since指定ありの検索クエリ生成テスト"""
         from src.create_twitter_html_all import main
