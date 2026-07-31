@@ -119,15 +119,25 @@ def navigate_to_twitter_search(search_query, search_box_pos):
     # 検索ボックスをクリックしてフォーカス
     pyautogui.click(search_box_pos['x'], search_box_pos['y'])
     time.sleep(config.WAIT_SECONDS['after_search_box_click'])
-    # ×ボタンをクリックして検索をクリア
+
+    # 検索欄右端の×ボタンをクリックして既存の検索文字列をクリアする。
+    # ここではcmd+Aを使わない。座標クリック後にフォーカスが外れていると
+    # ページ全体が選択されるため、従来どおり×ボタン操作に任せる。
     pyautogui.click(search_box_pos['x'], search_box_pos['y'])
     time.sleep(config.WAIT_SECONDS['after_search_clear_click'])
 
-    # 検索クエリをクリップボードにコピーして貼り付け
-    pyautogui.click(search_box_pos['x'], search_box_pos['y'])
+    # クリップボードへのコピー完了を確認してから、検索欄へ貼り付ける。
+    # hotkey() ではCommandの押下とvの送信が近すぎて、環境によっては
+    # Commandが認識されず「v」だけが検索欄へ入力されることがある。
     pyperclip.copy(search_query)
     time.sleep(config.WAIT_SECONDS['after_clipboard_copy'])
-    pyautogui.hotkey('command', 'v')
+    if pyperclip.paste() != search_query:
+        pyperclip.copy(search_query)
+        time.sleep(config.WAIT_SECONDS['after_clipboard_copy'])
+
+    pyautogui.click(search_box_pos['x'], search_box_pos['y'])
+    time.sleep(config.WAIT_SECONDS['after_search_box_click'])
+    paste_clipboard()
     time.sleep(config.WAIT_SECONDS['after_search_paste'])
     pyautogui.press('enter')
     time.sleep(config.WAIT_SECONDS['search_results_load'])  # 検索結果が表示されるのを待つ
@@ -192,7 +202,9 @@ def close_detail_tab():
     # 先にEscapeでポップアップを閉じてからタブを閉じる。
     pyautogui.press('esc')
     time.sleep(config.WAIT_SECONDS['before_extension_click'])
-    pyautogui.hotkey('command', 'w')
+    # hotkey() ではCommandの認識前にwが送られる場合があるため、
+    # 検索入力と同じくキーイベントを明示的に分ける。
+    press_chrome_shortcut('w')
     time.sleep(config.WAIT_SECONDS['after_tab_close'])
 
 
@@ -267,13 +279,13 @@ def process_detail_pages(tweets_data, search_box_pos, extension_button_pos, date
 
                 if not html_content:
                     print("詳細ページからHTMLの取得に失敗しました")
+                    close_detail_tab()
                     continue
 
                 is_detail_html, detail_message, soup = validate_detail_html_for_tweet(html_content, tweet_url)
                 if not is_detail_html:
                     print(f"警告: {detail_message}")
-                    if '/search?' not in detail_message:
-                        close_detail_tab()
+                    close_detail_tab()
                     continue
 
                 print(f"詳細ページHTMLを確認しました: {detail_message}")
