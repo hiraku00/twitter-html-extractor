@@ -270,14 +270,13 @@ python main.py --html 250706 -k chikirin
 - 設定ファイルで定義されたキーワードタイプか、`--search-keyword` で直接キーワードを指定
 - `chikirin` などのキーワードタイプを指定すると、専用フォルダにファイルが保存され、データが整理されます
 
-`chikirin` の抽出に成功すると、抽出結果は自動的に次のObsidian Markdown表へ追記されます。
+`chikirin` の抽出に成功すると、抽出結果は自動的にdashboardのwatch-list APIへ登録されます。
 
-`/Users/hiraku/Obsidian/hiraku-local/04_watch-list/watch list (text, audio, movie).md`
-
-- 既存のX投稿URLは重複登録しません
-- 作成日は投稿日時の `M/D`、種別は `movie` として登録します
-- 投稿本文とX投稿リンクを `contents` と `URL` 列へ登録します
-- Obsidianノートが利用できない場合も、抽出済みデータの保存処理は継続します
+- 登録先は環境変数 `WATCH_LIST_API_URL`（`.env`、`.env.example` 参照）
+- 既存のX投稿URL（`sourceSystem: chikirin` の `externalId`）は重複登録しません
+- `contentType` は `movie`、`sourceSystem` は `chikirin` として登録します
+- 投稿本文をタイトル、X投稿リンクを参照リンクとして登録します
+- dashboard APIへの登録に失敗しても、抽出済みデータの保存処理は継続します
 
 ### キーワードタイプ別フォルダ機能
 

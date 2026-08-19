@@ -2,3 +2,5 @@ beautifulsoup4>=4.9.0
 lxml>=4.6.0
 pyperclip>=1.8.0
 pyautogui>=0.9.54
+python-dotenv>=1.0.0
+certifi>=2025.1.1

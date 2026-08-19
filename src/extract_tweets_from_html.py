@@ -375,21 +375,21 @@ def save_tweets_to_files(tweets, base_filename="extracted_tweets", keyword_type=
     print(f"結果を {txt_path} と {json_path} に保存しました。")
 
 def append_chikirin_results_to_watch_list(tweets, keyword_type):
-    """ちきりんセレクトTVの取得結果をObsidianの視聴リストへ反映する。"""
+    """ちきりんセレクトTVの取得結果をdashboardのwatch-list APIへ反映する。"""
     if keyword_type != 'chikirin':
         return
 
-    from src.append_chikirin_to_watch_list import append_chikirin_tweets
+    from src.chikirin_watch_list_api import WatchListApiError, append_chikirin_tweets_to_dashboard
 
     try:
-        appended_count = append_chikirin_tweets(tweets)
-    except OSError as e:
-        print(f"警告: 視聴リストへの追記に失敗しました: {e}")
+        result = append_chikirin_tweets_to_dashboard(tweets)
+    except WatchListApiError as e:
+        print(f"警告: dashboardへの登録に失敗しました: {e}")
         return
-    if appended_count:
-        print(f"視聴リストに {appended_count} 件のちきりんセレクトTVを追記しました。")
-    else:
-        print("視聴リストに追記する未登録のちきりんセレクトTVはありません。")
+    print(
+        f"dashboardに {result['created']} 件のちきりんセレクトTVを登録しました"
+        f"（スキップ: {result['skipped']}件、エラー: {result['errors']}件）。"
+    )
 
 def main():
     """メイン処理"""
